@@ -26,7 +26,7 @@ describe("KnowledgeMarket", function () {
 
     // Deploy knowledge market contract
     const KnowledgeMarket = await ethers.getContractFactory("KnowledgeMarket");
-    knowledgeMarket = await KnowledgeMarket.deploy();
+    knowledgeMarket = await KnowledgeMarket.deploy(owner.address);
     await knowledgeMarket.waitForDeployment();
 
     // Mint NFT to user
@@ -210,6 +210,89 @@ describe("KnowledgeMarket", function () {
       expect(deal.imageURL).to.equal(IMAGE_URL);
       expect(deal.price).to.equal(PRICE);
     });
+
+    it("Should send 12% platform fee to the platformTreasury", async function () {
+      const treasuryAddress = await knowledgeMarket.platformTreasury();
+      const initialBalance = await ethers.provider.getBalance(treasuryAddress);
+
+      const PLATFORM_FEE = await knowledgeMarket.PLATFORM_FEE(); // 1200 (12%)
+
+      const tx = await knowledgeMarket.connect(user).mint(
+        vaultOwner.address,
+        VAULT_ID,
+        user.address,
+        { value: PRICE }
+      );
+      await tx.wait();
+
+      const finalBalance = await ethers.provider.getBalance(treasuryAddress);
+      const expectedFee = (PRICE * PLATFORM_FEE) / 10000n;
+      expect(finalBalance - initialBalance).to.equal(expectedFee);
+    });
+
+    it("Should fail if platform receives less than expected fee", async function () {
+      const treasuryAddress = await knowledgeMarket.platformTreasury();
+      const initialBalance = await ethers.provider.getBalance(treasuryAddress);
+
+      const wrongFee = ((PRICE * 1100n) / 10000n); // 11%
+
+      const tx = await knowledgeMarket.connect(user).mint(
+        vaultOwner.address,
+        VAULT_ID,
+        user.address,
+        { value: PRICE }
+      );
+      await tx.wait();
+
+      const finalBalance = await ethers.provider.getBalance(treasuryAddress);
+      const actualFee = finalBalance - initialBalance;
+
+      expect(actualFee).to.not.equal(wrongFee);
+    });
+
+
+    it("Should send correct creator amount to the vaultOwner", async function () {
+      const vaultOwnerInitialBalance = (await ethers.provider.getBalance(vaultOwner.address));
+
+      const PLATFORM_FEE = await knowledgeMarket.PLATFORM_FEE(); // 1200 (12%)
+
+      const tx = await knowledgeMarket.connect(user).mint(
+        vaultOwner.address,
+        VAULT_ID,
+        user.address,
+        { value: PRICE }
+      );
+      await tx.wait();
+
+      const vaultOwnerFinalBalance = (await ethers.provider.getBalance(vaultOwner.address));
+
+      const expectedPlatformFee = (PRICE * PLATFORM_FEE) / 10000n;
+      const expectedCreatorAmount = PRICE - expectedPlatformFee;
+
+      expect(vaultOwnerFinalBalance - vaultOwnerInitialBalance).to.equal(expectedCreatorAmount);
+    });
+
+    it("Should fail if vaultOwner receives an incorrect creator amount", async function () {
+      const vaultOwnerInitialBalance = await ethers.provider.getBalance(vaultOwner.address);
+
+      const tx = await knowledgeMarket.connect(user).mint(
+        vaultOwner.address,
+        VAULT_ID,
+        user.address,
+        { value: PRICE }
+      );
+      await tx.wait();
+
+      const vaultOwnerFinalBalance = await ethers.provider.getBalance(vaultOwner.address);
+
+      const wrongPlatformFee = (PRICE * 1100n) / 10000n; // 11%
+      const wrongCreatorAmount = PRICE - wrongPlatformFee;
+
+      const receivedAmount = vaultOwnerFinalBalance - vaultOwnerInitialBalance;
+
+      expect(receivedAmount).to.not.equal(wrongCreatorAmount);
+    });
+
 
     it("Should fail if payment amount is incorrect", async function () {
       const wrongPrice = PRICE - ethers.parseEther("0.01"); // Less than required price
