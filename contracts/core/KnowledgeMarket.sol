@@ -12,7 +12,10 @@ import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 contract KnowledgeMarket is ERC4908, ReentrancyGuard {
     // Default image URL used when no image is provided
     string private constant DEFAULT_IMAGE_URL = "https://arweave.net/9u0cgTmkSM25PfQpGZ-JzspjOMf4uGFjkvOfKjgQnVY";
-
+    // 12% platform fee
+    uint256 public PLATFORM_FEE = 1200;
+    address payable public platformTreasury;
+    
     struct Subscription {
         string vaultId;
         string imageURL;
@@ -41,7 +44,21 @@ contract KnowledgeMarket is ERC4908, ReentrancyGuard {
     event SubscriptionDeleted(address indexed vaultOwner, string vaultId);
     event AccessGranted(address indexed vaultOwner, string vaultId, address indexed customer, uint256 tokenId, uint256 price);
 
-    constructor() ERC4908("Knowledge Market Access", "KMA") {}
+    constructor(address payable initialTreasury) ERC4908("Knowledge Market Access", "KMA") {
+        if (initialTreasury == address(0)) revert ZeroAddress();
+        platformTreasury = initialTreasury;
+    }
+
+    /**
+     * @dev Safely transfers Ether to a recipient, reverting on failure
+     * @param recipient Address to send Ether to
+     * @param amount Amount of Ether to send
+     * @param errorMessage Error message if transfer fails
+     */
+    function safeTransfer(address payable recipient, uint256 amount, string memory errorMessage) internal {
+        (bool success, ) = recipient.call{value: amount}("");
+        require(success, errorMessage);
+    }
 
     /**
      * @dev Creates a new subscription offering
@@ -142,10 +159,23 @@ contract KnowledgeMarket is ERC4908, ReentrancyGuard {
         address payable vaultOwner,
         string calldata vaultId,
         address to
-    ) public payable override nonReentrant {
+    ) public payable override {
         if (vaultOwner == address(0)) revert ZeroAddress();
         if (to == address(0)) revert ZeroAddress();
         if (bytes(vaultId).length == 0) revert EmptyVaultId();
+
+        (uint256 basePrice, ) = this.getAccessControl(vaultOwner, vaultId);
+        
+        if (msg.value < basePrice) revert InsufficientFunds(basePrice);
+
+        uint256 platformFee = (basePrice * PLATFORM_FEE) / 10000;
+        uint256 creatorAmount = basePrice - platformFee;
+        
+        // Send platform fee to the treasury
+        safeTransfer(platformTreasury, platformFee, "Failed to send platform fee");
+       
+        // Send the remaining amount to the vault owner
+        safeTransfer(vaultOwner, creatorAmount, "Failed to send to vault owner");
 
         // This will validate that the sent value matches the required price (which can be 0 for free NFTs)
         super.mint(vaultOwner, vaultId, to);
