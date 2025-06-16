@@ -122,6 +122,8 @@ contract KnowledgeMarket is ERC4908, ReentrancyGuard {
         string imageURL;
         uint256 price;
         uint32 expirationDuration;
+        address coOwner;
+        uint32 splitFee;
     }
 
     /**
@@ -145,7 +147,9 @@ contract KnowledgeMarket is ERC4908, ReentrancyGuard {
                 vaultOwnerSubscriptions[vaultOwner][i].vaultId,
                 vaultOwnerSubscriptions[vaultOwner][i].imageURL,
                 price,
-                expirationDuration
+                expirationDuration,
+                vaultOwnerSubscriptions[vaultOwner][i].coOwner,
+                vaultOwnerSubscriptions[vaultOwner][i].splitFee
             );
         }
 
