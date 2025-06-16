@@ -102,7 +102,7 @@ describe("KnowledgeMarketProxy", function () {
     const imageURL = "https://example.com/image.jpg";
     
     // Call setSubscription via the proxy
-    await knowledgeMarketAtProxy.setSubscription(vaultId, price, expirationDuration, imageURL);
+    await knowledgeMarketAtProxy.setSubscription(vaultId, price, expirationDuration, imageURL, ethers.ZeroAddress, 0);
     
     // Verify the subscription was set by reading from the proxy
     const subscriptions = await knowledgeMarketAtProxy.getVaultOwnerSubscriptions(owner.address);
