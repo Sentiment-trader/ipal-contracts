@@ -52,6 +52,29 @@ describe("KnowledgeMarket", function () {
       expect(subscriptions[0].imageURL).to.equal(IMAGE_URL);
       expect(subscriptions[0].price).to.equal(PRICE);
       expect(subscriptions[0].expirationDuration).to.equal(EXPIRATION_DURATION);
+      expect(subscriptions[0].coOwner).to.equal(COOWNER);
+      expect(subscriptions[0].splitFee).to.equal(COOWNER_SHARE);
+    });
+
+    it("Should allow changing the co-owner address and fee", async function () {
+      const newCoOwnerShare = ethers.toBigInt(6000); // 60% share
+      await knowledgeMarket.connect(vaultOwner).setSubscription(
+        VAULT_ID,
+        PRICE,
+        EXPIRATION_DURATION,
+        IMAGE_URL,
+        anotherUser.address,
+        newCoOwnerShare
+      );
+
+      const subscriptions = await knowledgeMarket.getVaultOwnerSubscriptions(vaultOwner.address);
+      expect(subscriptions.length).to.equal(1);
+      expect(subscriptions[0].vaultId).to.equal(VAULT_ID);
+      expect(subscriptions[0].imageURL).to.equal(IMAGE_URL);
+      expect(subscriptions[0].price).to.equal(PRICE);
+      expect(subscriptions[0].expirationDuration).to.equal(EXPIRATION_DURATION);
+      expect(subscriptions[0].coOwner).to.equal(anotherUser.address);
+      expect(subscriptions[0].splitFee).to.equal(newCoOwnerShare);
     });
 
     it("Should allow deleting a subscription", async function () {
