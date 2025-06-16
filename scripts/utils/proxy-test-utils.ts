@@ -46,7 +46,9 @@ export async function createSubscription(
   vaultId: string,
   price: bigint,
   expirationDuration: number,
-  imageUrl: string
+  imageUrl: string,
+  coWonerAddress: string,
+  coOwnerShare: bigint
 ): Promise<ContractTransactionResponse | null> {
   console.log("\nStep 2: Creating a subscription");
   console.log(`Creating subscription with vaultId: ${vaultId}, price: ${price}`);
@@ -56,7 +58,9 @@ export async function createSubscription(
       vaultId,
       price,
       expirationDuration,
-      imageUrl
+      imageUrl,
+      coWonerAddress,
+      coOwnerShare
     );
     
     console.log("Transaction submitted. Waiting for confirmation...");
@@ -92,6 +96,8 @@ export async function verifySubscription(
         console.log(`  Price: ${subscriptions[i].price} wei`);
         console.log(`  Expiration Duration: ${subscriptions[i].expirationDuration} seconds`);
         console.log(`  Image URL: ${subscriptions[i].imageURL}`);
+        console.log(`  Co-Owner Address: ${subscriptions[i].coOwner}`);
+        console.log(`  Co-Owner Share: ${subscriptions[i].splitFee}`);
       }
       
       // Find our specific subscription

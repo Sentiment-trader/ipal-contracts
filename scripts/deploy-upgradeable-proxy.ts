@@ -1,12 +1,13 @@
 import { ethers } from "hardhat";
 
 async function main() {
+  const [deployer] = await ethers.getSigners();
   console.log("Deploying KnowledgeMarket implementation and upgradeable proxy system...");
 
   // 1. Deploy KnowledgeMarket implementation
   console.log("1. Deploying KnowledgeMarket implementation...");
   const KnowledgeMarket = await ethers.getContractFactory("KnowledgeMarket");
-  const knowledgeMarket = await KnowledgeMarket.deploy();
+  const knowledgeMarket = await KnowledgeMarket.deploy(deployer.address);
   await knowledgeMarket.waitForDeployment();
   const knowledgeMarketAddress = await knowledgeMarket.getAddress();
   console.log(`   Implementation deployed at: ${knowledgeMarketAddress}`);
