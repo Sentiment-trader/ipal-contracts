@@ -13,18 +13,22 @@ contract KnowledgeMarket is ERC4908, ReentrancyGuard {
     // Default image URL used when no image is provided
     string private constant DEFAULT_IMAGE_URL = "https://arweave.net/9u0cgTmkSM25PfQpGZ-JzspjOMf4uGFjkvOfKjgQnVY";
     // 12% platform fee
-    uint256 public PLATFORM_FEE = 1200;
+    uint32 public PLATFORM_FEE = 1200;
     address payable public platformTreasury;
     
     struct Subscription {
         string vaultId;
         string imageURL;
+        address coOwner;
+        uint32 splitFee;
     }
 
     struct Deal {
         address vaultOwner;
         string imageURL;
         uint256 price;
+        address coOwner;
+        uint32 splitFee;
     }
 
     // Vault ID string cannot be empty
@@ -33,6 +37,10 @@ contract KnowledgeMarket is ERC4908, ReentrancyGuard {
     error ZeroAddress();
     // Duration cannot be zero
     error ZeroDuration();
+    // Split fee must be between 0 and 10000 (inclusive)
+    error InvalidSplitFee();
+    // Owner and co-owner cannot be the same address
+    error SameOwnerAndCoOwner();
 
     // Maps vault owner addresses to their subscription offerings
     mapping(address => Subscription[]) public vaultOwnerSubscriptions;
@@ -50,37 +58,32 @@ contract KnowledgeMarket is ERC4908, ReentrancyGuard {
     }
 
     /**
-     * @dev Safely transfers Ether to a recipient, reverting on failure
-     * @param recipient Address to send Ether to
-     * @param amount Amount of Ether to send
-     * @param errorMessage Error message if transfer fails
-     */
-    function safeTransfer(address payable recipient, uint256 amount, string memory errorMessage) internal {
-        (bool success, ) = recipient.call{value: amount}("");
-        require(success, errorMessage);
-    }
-
-    /**
      * @dev Creates a new subscription offering
      * @param vaultId Unique identifier for the knowledge vault
      * @param price Cost to mint an access NFT (can be 0 for free NFTs)
      * @param expirationDuration How long access lasts (in seconds)
      * @param imageURL URL for the image representing this subscription
+     * @param coOwner Address of a co-owner who shares revenue (optional)
+     * @param splitFee Percentage of revenue to share with co-owner (0-10000, where 10000 = 100%)
      */
     function setSubscription(
         string calldata vaultId,
         uint256 price,
         uint32 expirationDuration,
-        string calldata imageURL
+        string calldata imageURL,
+        address coOwner,
+        uint32 splitFee
     ) public nonReentrant {
         // Input validation
         if (bytes(vaultId).length == 0) revert EmptyVaultId();
         if (expirationDuration == 0) revert ZeroDuration();
+        if (splitFee > 10000) revert InvalidSplitFee();
+        if (coOwner == msg.sender) revert SameOwnerAndCoOwner();
 
         // Use the default image if none provided
         string memory finalImageURL = bytes(imageURL).length == 0 ? DEFAULT_IMAGE_URL : imageURL;
         
-        vaultOwnerSubscriptions[msg.sender].push(Subscription(vaultId, finalImageURL));
+        vaultOwnerSubscriptions[msg.sender].push(Subscription(vaultId, finalImageURL, coOwner, splitFee));
         setAccess(vaultId, price, expirationDuration);
 
         emit SubscriptionCreated(msg.sender, vaultId, price, expirationDuration);
@@ -172,28 +175,39 @@ contract KnowledgeMarket is ERC4908, ReentrancyGuard {
         uint256 creatorAmount = basePrice - platformFee;
         
         // Send platform fee to the treasury
-        safeTransfer(platformTreasury, platformFee, "Failed to send platform fee");
-       
-        // Send the remaining amount to the vault owner
-        safeTransfer(vaultOwner, creatorAmount, "Failed to send to vault owner");
-
-        // This will validate that the sent value matches the required price (which can be 0 for free NFTs)
-        super.mint(vaultOwner, vaultId, to);
+        platformTreasury.transfer(platformFee);
 
         // Find the matching subscription's image URL
         uint256 length = vaultOwnerSubscriptions[vaultOwner].length;
         string memory imageURL = DEFAULT_IMAGE_URL; // Default value if not found
+        address coOwner = address(0);
+        uint32 splitFee = 0;
         
         for (uint256 i = 0; i < length; i++) {
             if (keccak256(abi.encodePacked(vaultOwnerSubscriptions[vaultOwner][i].vaultId)) 
                     == keccak256(abi.encodePacked(vaultId))) {
                 imageURL = vaultOwnerSubscriptions[vaultOwner][i].imageURL;
+                coOwner = vaultOwnerSubscriptions[vaultOwner][i].coOwner;
+                splitFee = vaultOwnerSubscriptions[vaultOwner][i].splitFee;
                 break;
             }
         }
 
+        // If co-owner exists, split the payment
+        if (coOwner != address(0) && splitFee > 0) {
+            uint256 coOwnerAmount = (creatorAmount * splitFee) / 10000;
+            uint256 ownerAmount = creatorAmount - coOwnerAmount;
+            payable(coOwner).transfer(coOwnerAmount);
+            vaultOwner.transfer(ownerAmount);
+        } else {
+            vaultOwner.transfer(creatorAmount);
+        }
+
+        // This will validate that the sent value matches the required price (which can be 0 for free NFTs)
+        super.mint(vaultOwner, vaultId, to);
+
         uint256 tokenId = totalSupply() - 1;
-        dealInfo[tokenId] = Deal(vaultOwner, imageURL, msg.value);
+        dealInfo[tokenId] = Deal(vaultOwner, imageURL, msg.value, coOwner, splitFee);
         
         emit AccessGranted(vaultOwner, vaultId, to, tokenId, msg.value);
     }
