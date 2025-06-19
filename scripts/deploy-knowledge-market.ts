@@ -1,13 +1,18 @@
 import { ethers } from "hardhat";
 
 async function main() {
+  const [deployer] = await ethers.getSigners();
+
+  console.log("Deploying with account:", deployer.address);
+  console.log("Account balance:", (await deployer.provider!.getBalance(deployer.address)).toString());
+
   console.log("Deploying KnowledgeMarket contract...");
   
   // Get the contract factory
   const KnowledgeMarket = await ethers.getContractFactory("KnowledgeMarket");
   
   // Deploy the contract
-  const knowledgeMarket = await KnowledgeMarket.deploy();
+  const knowledgeMarket = await KnowledgeMarket.deploy(deployer.address);
   
   // Wait for deployment to complete
   await knowledgeMarket.waitForDeployment();
