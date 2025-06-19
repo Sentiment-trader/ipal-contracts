@@ -21,7 +21,7 @@ describe("KnowledgeMarketProxy", function () {
   beforeEach(async function () {
     // Deploy KnowledgeMarket implementation
     const KnowledgeMarket = await ethers.getContractFactory("KnowledgeMarket");
-    knowledgeMarket = await KnowledgeMarket.deploy();
+    knowledgeMarket = await KnowledgeMarket.deploy(owner.address);
     await knowledgeMarket.waitForDeployment();
     const knowledgeMarketAddress = await knowledgeMarket.getAddress();
 
@@ -75,7 +75,7 @@ describe("KnowledgeMarketProxy", function () {
     
     // Deploy a second version of the implementation
     const KnowledgeMarketV2 = await ethers.getContractFactory("KnowledgeMarket");
-    knowledgeMarketV2 = await KnowledgeMarketV2.deploy();
+    knowledgeMarketV2 = await KnowledgeMarketV2.deploy(owner.address);
     await knowledgeMarketV2.waitForDeployment();
     const knowledgeMarketV2Address = await knowledgeMarketV2.getAddress();
     
@@ -102,7 +102,7 @@ describe("KnowledgeMarketProxy", function () {
     const imageURL = "https://example.com/image.jpg";
     
     // Call setSubscription via the proxy
-    await knowledgeMarketAtProxy.setSubscription(vaultId, price, expirationDuration, imageURL);
+    await knowledgeMarketAtProxy.setSubscription(vaultId, price, expirationDuration, imageURL, ethers.ZeroAddress, 0);
     
     // Verify the subscription was set by reading from the proxy
     const subscriptions = await knowledgeMarketAtProxy.getVaultOwnerSubscriptions(owner.address);
