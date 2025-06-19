@@ -12,6 +12,8 @@ import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 contract KnowledgeMarket is ERC4908, ReentrancyGuard {
     // Default image URL used when no image is provided
     string private constant DEFAULT_IMAGE_URL = "https://arweave.net/9u0cgTmkSM25PfQpGZ-JzspjOMf4uGFjkvOfKjgQnVY";
+    uint32 public PLATFORM_FEE = 1200;
+    address payable public platformTreasury;
 
     struct Subscription {
         string vaultId;
@@ -30,6 +32,10 @@ contract KnowledgeMarket is ERC4908, ReentrancyGuard {
     error ZeroAddress();
     // Duration cannot be zero
     error ZeroDuration();
+    // Split fee must be between 0 and 10000 (inclusive)
+    error InvalidSplitFee();
+    // Owner and co-owner cannot be the same address
+    error SameOwnerAndCoOwner();
 
     // Maps vault owner addresses to their subscription offerings
     mapping(address => Subscription[]) public vaultOwnerSubscriptions;
@@ -41,7 +47,10 @@ contract KnowledgeMarket is ERC4908, ReentrancyGuard {
     event SubscriptionDeleted(address indexed vaultOwner, string vaultId);
     event AccessGranted(address indexed vaultOwner, string vaultId, address indexed customer, uint256 tokenId, uint256 price);
 
-    constructor() ERC4908("Knowledge Market Access", "KMA") {}
+    constructor(address payable initialTreasury) ERC4908("Knowledge Market Access", "KMA") {
+        if (initialTreasury == address(0)) revert ZeroAddress();
+        platformTreasury = initialTreasury;
+    }
 
     /**
      * @dev Creates a new subscription offering
@@ -54,17 +63,21 @@ contract KnowledgeMarket is ERC4908, ReentrancyGuard {
         string calldata vaultId,
         uint256 price,
         uint32 expirationDuration,
-        string calldata imageURL
+        string calldata imageURL,
+        address coOwner,
+        uint32 splitFee
     ) public nonReentrant {
         // Input validation
         if (bytes(vaultId).length == 0) revert EmptyVaultId();
         if (expirationDuration == 0) revert ZeroDuration();
+        if (splitFee > 10000) revert InvalidSplitFee();
+        if (coOwner == msg.sender) revert SameOwnerAndCoOwner();
 
         // Use the default image if none provided
         string memory finalImageURL = bytes(imageURL).length == 0 ? DEFAULT_IMAGE_URL : imageURL;
         
         vaultOwnerSubscriptions[msg.sender].push(Subscription(vaultId, finalImageURL));
-        setAccess(vaultId, price, expirationDuration);
+        setAccess(vaultId, price, expirationDuration, coOwner, splitFee);
 
         emit SubscriptionCreated(msg.sender, vaultId, price, expirationDuration);
     }
@@ -102,6 +115,8 @@ contract KnowledgeMarket is ERC4908, ReentrancyGuard {
         string imageURL;
         uint256 price;
         uint32 expirationDuration;
+        address coOwner;
+        uint32 splitFee;
     }
 
     /**
@@ -116,7 +131,7 @@ contract KnowledgeMarket is ERC4908, ReentrancyGuard {
         SubscriptionDetails[] memory subs = new SubscriptionDetails[](length);
 
         for (uint256 i = 0; i < length; i++) {
-            (uint256 price, uint32 expirationDuration) = this.getAccessControl(
+            (uint256 price, uint32 expirationDuration, address coOwner, uint32 splitFee) = this.getAccessControl(
                 vaultOwner, 
                 vaultOwnerSubscriptions[vaultOwner][i].vaultId
             );
@@ -125,7 +140,9 @@ contract KnowledgeMarket is ERC4908, ReentrancyGuard {
                 vaultOwnerSubscriptions[vaultOwner][i].vaultId,
                 vaultOwnerSubscriptions[vaultOwner][i].imageURL,
                 price,
-                expirationDuration
+                expirationDuration,
+                coOwner,
+                splitFee
             );
         }
 
@@ -146,6 +163,26 @@ contract KnowledgeMarket is ERC4908, ReentrancyGuard {
         if (vaultOwner == address(0)) revert ZeroAddress();
         if (to == address(0)) revert ZeroAddress();
         if (bytes(vaultId).length == 0) revert EmptyVaultId();
+
+        (uint256 basePrice, , address coOwner, uint32 splitFee) = this.getAccessControl(vaultOwner, vaultId);
+        
+        if (msg.value < basePrice) revert InsufficientFunds(basePrice);
+
+        uint256 platformFee = (basePrice * PLATFORM_FEE) / 10000;
+        uint256 creatorAmount = basePrice - platformFee;
+        
+        // Send platform fee to the treasury
+        platformTreasury.transfer(platformFee);
+
+        // If co-owner exists, split the payment
+        if (coOwner != address(0) && splitFee > 0) {
+            uint256 coOwnerAmount = (creatorAmount * splitFee) / 10000;
+            uint256 ownerAmount = creatorAmount - coOwnerAmount;
+            payable(coOwner).transfer(coOwnerAmount);
+            vaultOwner.transfer(ownerAmount);
+        } else {
+            vaultOwner.transfer(creatorAmount);
+        }
 
         // This will validate that the sent value matches the required price (which can be 0 for free NFTs)
         super.mint(vaultOwner, vaultId, to);
