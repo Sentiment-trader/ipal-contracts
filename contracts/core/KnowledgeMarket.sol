@@ -12,8 +12,9 @@ import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 contract KnowledgeMarket is ERC4908, ReentrancyGuard {
     // Default image URL used when no image is provided
     string private constant DEFAULT_IMAGE_URL = "https://arweave.net/9u0cgTmkSM25PfQpGZ-JzspjOMf4uGFjkvOfKjgQnVY";
-    uint32 public PLATFORM_FEE = 1200;
+    uint32 public PLATFORM_FEE;
     address payable public platformTreasury;
+    bool private _initialized;
 
     struct Subscription {
         string vaultId;
@@ -47,9 +48,15 @@ contract KnowledgeMarket is ERC4908, ReentrancyGuard {
     event SubscriptionDeleted(address indexed vaultOwner, string vaultId);
     event AccessGranted(address indexed vaultOwner, string vaultId, address indexed customer, uint256 tokenId, uint256 price);
 
-    constructor(address payable initialTreasury) ERC4908("Knowledge Market Access", "KMA") {
-        if (initialTreasury == address(0)) revert ZeroAddress();
-        platformTreasury = initialTreasury;
+    constructor() ERC4908("Knowledge Market Access", "KMA") { }
+
+    function initialize(address payable treasury) public {
+        if (_initialized) revert("Contract already initialized");
+        if (treasury == address(0)) revert ZeroAddress();
+
+        platformTreasury = treasury;
+        PLATFORM_FEE = 1200;
+        _initialized = true;
     }
 
     /**
