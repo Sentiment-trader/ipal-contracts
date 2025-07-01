@@ -174,6 +174,7 @@ contract KnowledgeMarket is ERC4908, ReentrancyGuard {
         (uint256 basePrice, , address coOwner, uint32 splitFee) = this.getAccessControl(vaultOwner, vaultId);
         
         if (msg.value < basePrice) revert InsufficientFunds(basePrice);
+        if (msg.value > basePrice) payable(msg.sender).transfer(msg.value - basePrice); // Refund excess
 
         uint256 platformFee = (basePrice * PLATFORM_FEE) / 10000;
         uint256 creatorAmount = basePrice - platformFee;
