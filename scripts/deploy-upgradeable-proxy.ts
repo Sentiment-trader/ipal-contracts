@@ -34,6 +34,19 @@ async function main() {
   await proxyWithInterface.changeAdmin(proxyAdminAddress);
   console.log(`   Proxy admin transferred to: ${proxyAdminAddress}`);
 
+  // 5. Initialize the proxy with the desired initial values
+  console.log("5. Initializing KnowledgeMarket via proxy...");
+
+  const [deployer] = await ethers.getSigners();
+
+  const initialTreasuryAddress = deployer.address; // Replace with the actual treasury address
+  const initialFeePercent = 1200; // 12% 
+  console.log(`   Initial Treasury Address: ${initialTreasuryAddress}`);
+  console.log(`   Initial Fee Percent: ${initialFeePercent}`);
+  
+  const proxyAsKnowledgeMarket = await ethers.getContractAt("KnowledgeMarket", proxyAddress);
+  await proxyAsKnowledgeMarket.initialize(initialTreasuryAddress, initialFeePercent);
+
   console.log("\nDeployment completed successfully!");
   console.log("==============================================");
   console.log(`You can interact with KnowledgeMarket through the proxy at: ${proxyAddress}`);
