@@ -11,11 +11,13 @@ describe("KnowledgeMarketProxy", function () {
   let proxyAdmin: ProxyAdmin;
   let owner: any;
   let user: any;
+  let coOwner: any;
 
   before(async function () {
-    const [deployer, userAccount] = await ethers.getSigners();
+    const [deployer, userAccount, coowner] = await ethers.getSigners();
     owner = deployer;
     user = userAccount;
+    coOwner = coowner;
   });
 
   beforeEach(async function () {
@@ -39,6 +41,13 @@ describe("KnowledgeMarketProxy", function () {
 
     // Transfer proxy admin to ProxyAdmin contract
     await proxy.changeAdmin(proxyAdminAddress);
+
+    // Initialize the proxy with the desired initial values
+    const initialTreasuryAddress = owner.address; // Replace with the actual treasury address
+    const initialFeePercent = 1200; // 12% as an example
+
+    const proxyAsKnowledgeMarket = await ethers.getContractAt("KnowledgeMarket", proxyAddress);
+    await proxyAsKnowledgeMarket.initialize(initialTreasuryAddress, initialFeePercent);
   });
 
   it("Should return correct name and symbol", async function () {
@@ -100,14 +109,32 @@ describe("KnowledgeMarketProxy", function () {
     const price = ethers.parseEther("0.01");
     const expirationDuration = 60 * 60 * 24; // 1 day
     const imageURL = "https://example.com/image.jpg";
+    const coOwnerAddress = coOwner.address;
+    const coOwnerShare = ethers.toBigInt(500);
     
     // Call setSubscription via the proxy
-    await knowledgeMarketAtProxy.setSubscription(vaultId, price, expirationDuration, imageURL);
+    await knowledgeMarketAtProxy.setSubscription(vaultId, price, expirationDuration, imageURL, coOwnerAddress, coOwnerShare);
     
     // Verify the subscription was set by reading from the proxy
     const subscriptions = await knowledgeMarketAtProxy.getVaultOwnerSubscriptions(owner.address);
     expect(subscriptions.length).to.be.greaterThan(0);
     expect(subscriptions[0].vaultId).to.equal(vaultId);
     expect(subscriptions[0].price).to.equal(price);
+    expect(subscriptions[0].expirationDuration).to.equal(expirationDuration);
+    expect(subscriptions[0].imageURL).to.equal(imageURL);
+    expect(subscriptions[0].coOwner).to.equal(coOwnerAddress);
+    expect(subscriptions[0].splitFee).to.equal(coOwnerShare);
+  });
+
+  it("Check the fee and treasury address", async function () {
+    const proxyAddress = await proxy.getAddress();
+    const knowledgeMarketAtProxy = await ethers.getContractAt("KnowledgeMarket", proxyAddress);
+
+    // Check the fee and treasury address
+    const fee = await knowledgeMarketAtProxy.platformFeePercent();
+    const treasuryAddress = await knowledgeMarketAtProxy.platformTreasury();
+
+    expect(fee).to.equal(1200); // 12% fee
+    expect(treasuryAddress).to.equal(owner.address); // Should be the deployer's address
   });
 }); 
