@@ -3,13 +3,14 @@ pragma solidity ^0.8.24;
 
 import {ERC4908} from "erc-4908/contracts/ERC4908.sol";
 import {Strings} from "@openzeppelin/contracts/utils/Strings.sol";
-import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
+import {ReentrancyGuard} from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
+import {Initializable} from "@openzeppelin/contracts/proxy/utils/Initializable.sol";
 
 /**
  * @title KnowledgeMarket
  * @dev Contract for managing knowledge subscriptions using ERC4908 token standard
  */
-contract KnowledgeMarket is ERC4908, ReentrancyGuard {
+contract KnowledgeMarket is Initializable, ERC4908, ReentrancyGuard {
     // Default image URL used when no image is provided
     string private constant DEFAULT_IMAGE_URL = "https://arweave.net/9u0cgTmkSM25PfQpGZ-JzspjOMf4uGFjkvOfKjgQnVY";
 
@@ -24,17 +25,27 @@ contract KnowledgeMarket is ERC4908, ReentrancyGuard {
         uint256 price;
     }
 
+    address payable public platformTreasury;
+    uint32 public platformFeePercent; // ex: 500 = 5%
+    uint256 private nextTokenId = 0;
+
     // Vault ID string cannot be empty
     error EmptyVaultId();
     // Zero address cannot be used for vault owner or recipient
     error ZeroAddress();
     // Duration cannot be zero
     error ZeroDuration();
+    // Split fee must be between 0 and 10000 (inclusive)
+    error SameCoOwner();
+    // Fee must be between 0 and 10000 (inclusive)
+    error InvalidFee();
 
     // Maps vault owner addresses to their subscription offerings
     mapping(address => Subscription[]) public vaultOwnerSubscriptions;
     // Maps NFT IDs to their deal information
     mapping(uint256 => Deal) public dealInfo;
+    // Maps image URLs to their corresponding NFT metadata
+    mapping(address => mapping(string => string)) private subscriptionImageURLs;
 
     // Events for important state changes
     event SubscriptionCreated(address indexed vaultOwner, string vaultId, uint256 price, uint32 expirationDuration);
@@ -42,6 +53,14 @@ contract KnowledgeMarket is ERC4908, ReentrancyGuard {
     event AccessGranted(address indexed vaultOwner, string vaultId, address indexed customer, uint256 tokenId, uint256 price);
 
     constructor() ERC4908("Knowledge Market Access", "KMA") {}
+
+    function initialize(address payable _treasury, uint32 _fee) public initializer {
+        if (_treasury == address(0)) revert ZeroAddress();
+        if (_fee > 10000) revert InvalidFee();
+
+        platformTreasury = _treasury;
+        platformFeePercent = _fee;
+    }
 
     /**
      * @dev Creates a new subscription offering
@@ -54,17 +73,23 @@ contract KnowledgeMarket is ERC4908, ReentrancyGuard {
         string calldata vaultId,
         uint256 price,
         uint32 expirationDuration,
-        string calldata imageURL
+        string calldata imageURL,
+        address coOwner,
+        uint32 splitFee
     ) public nonReentrant {
         // Input validation
         if (bytes(vaultId).length == 0) revert EmptyVaultId();
         if (expirationDuration == 0) revert ZeroDuration();
+        if (splitFee > 10000) revert InvalidFee();
+        if (coOwner == msg.sender) revert SameCoOwner();
 
         // Use the default image if none provided
         string memory finalImageURL = bytes(imageURL).length == 0 ? DEFAULT_IMAGE_URL : imageURL;
         
         vaultOwnerSubscriptions[msg.sender].push(Subscription(vaultId, finalImageURL));
-        setAccess(vaultId, price, expirationDuration);
+        subscriptionImageURLs[msg.sender][vaultId] = finalImageURL;
+
+        setAccess(vaultId, price, expirationDuration, coOwner, splitFee);
 
         emit SubscriptionCreated(msg.sender, vaultId, price, expirationDuration);
     }
@@ -92,6 +117,7 @@ contract KnowledgeMarket is ERC4908, ReentrancyGuard {
         }
 
         if (found) {
+            delete subscriptionImageURLs[msg.sender][vaultId];
             delAccess(vaultId);
             emit SubscriptionDeleted(msg.sender, vaultId);
         }
@@ -102,6 +128,8 @@ contract KnowledgeMarket is ERC4908, ReentrancyGuard {
         string imageURL;
         uint256 price;
         uint32 expirationDuration;
+        address coOwner;
+        uint32 splitFee;
     }
 
     /**
@@ -116,7 +144,7 @@ contract KnowledgeMarket is ERC4908, ReentrancyGuard {
         SubscriptionDetails[] memory subs = new SubscriptionDetails[](length);
 
         for (uint256 i = 0; i < length; i++) {
-            (uint256 price, uint32 expirationDuration) = this.getAccessControl(
+            (uint256 price, uint32 expirationDuration, address coOwner, uint32 splitFee) = this.getAccessControl(
                 vaultOwner, 
                 vaultOwnerSubscriptions[vaultOwner][i].vaultId
             );
@@ -125,7 +153,9 @@ contract KnowledgeMarket is ERC4908, ReentrancyGuard {
                 vaultOwnerSubscriptions[vaultOwner][i].vaultId,
                 vaultOwnerSubscriptions[vaultOwner][i].imageURL,
                 price,
-                expirationDuration
+                expirationDuration,
+                coOwner,
+                splitFee
             );
         }
 
@@ -142,32 +172,65 @@ contract KnowledgeMarket is ERC4908, ReentrancyGuard {
         address payable vaultOwner,
         string calldata vaultId,
         address to
-    ) public payable override nonReentrant {
+    ) public payable nonReentrant {
         if (vaultOwner == address(0)) revert ZeroAddress();
         if (to == address(0)) revert ZeroAddress();
         if (bytes(vaultId).length == 0) revert EmptyVaultId();
 
-        // This will validate that the sent value matches the required price (which can be 0 for free NFTs)
-        super.mint(vaultOwner, vaultId, to);
-
-        // Find the matching subscription's image URL
-        uint256 length = vaultOwnerSubscriptions[vaultOwner].length;
-        string memory imageURL = DEFAULT_IMAGE_URL; // Default value if not found
+        bytes32 hash = _hash(vaultOwner, vaultId);
+        if (!this.existAccess(hash)) revert MintUnavailable(hash);
         
-        for (uint256 i = 0; i < length; i++) {
-            if (keccak256(abi.encodePacked(vaultOwnerSubscriptions[vaultOwner][i].vaultId)) 
-                    == keccak256(abi.encodePacked(vaultId))) {
-                imageURL = vaultOwnerSubscriptions[vaultOwner][i].imageURL;
-                break;
-            }
+        Settings memory set = accessControl[hash];
+
+        if (msg.value < set.price) revert InsufficientFunds(set.price);
+
+        uint256 tokenId = nextTokenId++;
+        nftData[tokenId] = Metadata(
+            hash,
+            set.resourceId,
+            set.expirationDuration + uint32(block.timestamp)
+        );
+
+        string memory imageURL = subscriptionImageURLs[vaultOwner][vaultId];
+        if (bytes(imageURL).length == 0) {
+            imageURL = DEFAULT_IMAGE_URL;
         }
 
-        uint256 tokenId = totalSupply() - 1;
-        dealInfo[tokenId] = Deal(vaultOwner, imageURL, msg.value);
-        
-        emit AccessGranted(vaultOwner, vaultId, to, tokenId, msg.value);
+        dealInfo[tokenId] = Deal(vaultOwner, imageURL, set.price);
+
+        _processPayment(vaultOwner, set.price, set);
+
+        uint256 excess = msg.value - set.price;
+        if (excess > 0) {
+            payable(msg.sender).transfer(excess);
+        }
+        // Mint the NFT
+        _safeMint(to, tokenId);
+
+        emit AccessGranted(vaultOwner, vaultId, to, tokenId, set.price);
     }
 
+    function _processPayment(
+        address payable vaultOwner,
+        uint256 amount,
+        Settings memory set
+    ) private {
+        uint256 remaining = amount;
+        uint256 feeAmount = (amount * platformFeePercent) / 10000;
+        if (feeAmount > 0) {
+            platformTreasury.transfer(feeAmount);
+            remaining -= feeAmount;
+        }
+        if (set.coOwner != address(0) && set.splitFee > 0) {
+            uint256 coPart = (remaining * set.splitFee) / 10000;
+            remaining -= coPart;
+            payable(set.coOwner).transfer(coPart);
+        }
+        if (remaining > 0) {
+            vaultOwner.transfer(remaining);
+        }
+    }
+    
     /**
      * @dev Checks if a customer has access to any of a vault owner's resources
      * @param vaultOwner Address of the vault owner
@@ -200,30 +263,29 @@ contract KnowledgeMarket is ERC4908, ReentrancyGuard {
      * @return JSON metadata as a string
      */
     function tokenURI(uint256 id) public view override returns (string memory) {
-        string memory imageUrl = bytes(dealInfo[id].imageURL).length > 0 
-            ? dealInfo[id].imageURL 
+        Metadata memory data = nftData[id];
+        Deal memory deal = dealInfo[id];
+        Settings memory set = accessControl[data.hash];
+
+        string memory imageUrl = bytes(deal.imageURL).length > 0
+            ? deal.imageURL
             : DEFAULT_IMAGE_URL;
-            
-        string memory jsonPreImage = string.concat(
-            string.concat(
-                string.concat('{"name": "', nftData[id].resourceId),
-                '","description":"This NFT grants access to a knowledge vault.","external_url":"https://knowledge-market.io/vaults/","image":"'
-            ),
-            imageUrl
+
+        string memory json = string.concat(
+            "{",
+                "\"name\":\"", data.resourceId, "\",",
+                "\"description\":\"This NFT grants access to a knowledge vault.\",",
+                "\"external_url\":\"https://knowledge-market.io/vaults/", data.resourceId, "\",",
+                "\"image\":\"", imageUrl, "\",",
+                "\"attributes\":[",
+                    "{ \"trait_type\": \"Price\", \"value\": ", Strings.toString(deal.price), " },",
+                    "{ \"trait_type\": \"Platform Fee (%)\", \"value\": ", Strings.toString(platformFeePercent), " },",
+                    "{ \"trait_type\": \"Split Fee (%)\", \"value\": ", Strings.toString(set.splitFee), " },",
+                    "{ \"trait_type\": \"Expiration date\", \"display_type\": \"date\", \"value\": ", Strings.toString(data.expirationTime), " }",
+                "]",
+            "}"
         );
 
-        string memory jsonPostImage = string.concat(
-            '","attributes":[{"display_type": "date", "trait_type": "Expiration date","value": ', 
-            Strings.toString(nftData[id].expirationTime)
-        );
-        string memory jsonPostTraits = '}]}';
-
-        return string.concat(
-            "data:application/json;utf8,",
-            string.concat(
-                string.concat(jsonPreImage, jsonPostImage),
-                jsonPostTraits
-            )
-        );
+        return string.concat("data:application/json;utf8,", json);
     }
 } 
