@@ -35,7 +35,9 @@ async function main() {
     config.vaultId,
     config.price,
     config.expirationDuration,
-    config.imageUrl
+    config.imageUrl,
+    config.coOwner,
+    config.splitFee
   );
   
   // 3. Verify the subscription was created

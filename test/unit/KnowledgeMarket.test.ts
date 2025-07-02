@@ -28,7 +28,7 @@ describe("KnowledgeMarket", function () {
 
     // Deploy knowledge market contract
     const KnowledgeMarket = await ethers.getContractFactory("KnowledgeMarket");
-    knowledgeMarket = await KnowledgeMarket.deploy(owner.address);
+    knowledgeMarket = await KnowledgeMarket.deploy();
     await knowledgeMarket.waitForDeployment();
 
     // Mint NFT to user

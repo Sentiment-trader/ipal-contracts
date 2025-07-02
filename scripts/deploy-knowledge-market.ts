@@ -12,7 +12,7 @@ async function main() {
   const KnowledgeMarket = await ethers.getContractFactory("KnowledgeMarket");
   
   // Deploy the contract
-  const knowledgeMarket = await KnowledgeMarket.deploy(deployer.address);
+  const knowledgeMarket = await KnowledgeMarket.deploy();
   
   // Wait for deployment to complete
   await knowledgeMarket.waitForDeployment();

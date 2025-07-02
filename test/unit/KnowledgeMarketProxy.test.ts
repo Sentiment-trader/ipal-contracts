@@ -21,7 +21,7 @@ describe("KnowledgeMarketProxy", function () {
   beforeEach(async function () {
     // Deploy KnowledgeMarket implementation
     const KnowledgeMarket = await ethers.getContractFactory("KnowledgeMarket");
-    knowledgeMarket = await KnowledgeMarket.deploy(owner.address);
+    knowledgeMarket = await KnowledgeMarket.deploy();
     await knowledgeMarket.waitForDeployment();
     const knowledgeMarketAddress = await knowledgeMarket.getAddress();
 
@@ -39,6 +39,14 @@ describe("KnowledgeMarketProxy", function () {
 
     // Transfer proxy admin to ProxyAdmin contract
     await proxy.changeAdmin(proxyAdminAddress);
+
+    // Initialize the proxy with the desired initial values
+    const [deployer] = await ethers.getSigners();
+    const initialTreasuryAddress = deployer.address; // Replace with the actual treasury address
+
+    const proxyAsKnowledgeMarket = await ethers.getContractAt("KnowledgeMarket", proxyAddress);
+    await proxyAsKnowledgeMarket.initialize(initialTreasuryAddress);
+
   });
 
   it("Should return correct name and symbol", async function () {
@@ -75,7 +83,7 @@ describe("KnowledgeMarketProxy", function () {
     
     // Deploy a second version of the implementation
     const KnowledgeMarketV2 = await ethers.getContractFactory("KnowledgeMarket");
-    knowledgeMarketV2 = await KnowledgeMarketV2.deploy(owner.address);
+    knowledgeMarketV2 = await KnowledgeMarketV2.deploy();
     await knowledgeMarketV2.waitForDeployment();
     const knowledgeMarketV2Address = await knowledgeMarketV2.getAddress();
     
@@ -109,5 +117,21 @@ describe("KnowledgeMarketProxy", function () {
     expect(subscriptions.length).to.be.greaterThan(0);
     expect(subscriptions[0].vaultId).to.equal(vaultId);
     expect(subscriptions[0].price).to.equal(price);
+    expect(subscriptions[0].expirationDuration).to.equal(expirationDuration);
+    expect(subscriptions[0].imageURL).to.equal(imageURL);
+    expect(subscriptions[0].coOwner).to.equal(ethers.ZeroAddress);
+    expect(subscriptions[0].splitFee).to.equal(0);
+  });
+
+  it("Check the fee and treasury address", async function () {
+    const proxyAddress = await proxy.getAddress();
+    const knowledgeMarketAtProxy = await ethers.getContractAt("KnowledgeMarket", proxyAddress);
+    
+    // Check the fee and treasury address
+    const fee = await knowledgeMarketAtProxy.PLATFORM_FEE();
+    const treasuryAddress = await knowledgeMarketAtProxy.platformTreasury();
+    
+    expect(fee).to.equal(1200); // 12% fee
+    expect(treasuryAddress).to.equal(owner.address); // Should be the deployer's address
   });
 }); 

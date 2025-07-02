@@ -9,7 +9,7 @@ import "../core/KnowledgeMarket.sol";
  * Functionally identical to KnowledgeMarket but with a hash-like name for the token
  */
 contract TestKnowledgeMarket is KnowledgeMarket {
-    constructor(address payable initialTreasury) KnowledgeMarket(initialTreasury) {
+    constructor() KnowledgeMarket() {
         // Override the name and symbol from the parent constructor
         // Note: This is a pattern to simulate having a different contract name
         // In a real-world scenario, you might want to use a proxy pattern instead

@@ -45,11 +45,21 @@ async function main() {
     config.vaultId,
     config.price,
     config.expirationDuration,
-    config.imageUrl
+    config.imageUrl,
+    config.coOwner,
+    config.splitFee
   );
-  
+  console.log(`Subscription transaction: ${subscriptionTx}`);
+
   // 3. Verify the subscription was created
   const subscriptionVerified = await verifySubscription(knowledgeMarket, config.vaultId, deployer.address);
+
+  if (subscriptionVerified) {
+    console.log("\nSubscription created and verified successfully!");
+  } else {
+    console.error("\nSubscription verification failed!");
+    process.exit(1);
+  }
   
   console.log("\n=== PART 2: MINTING TEST ===");
   

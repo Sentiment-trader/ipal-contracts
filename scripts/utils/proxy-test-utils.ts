@@ -46,7 +46,9 @@ export async function createSubscription(
   vaultId: string,
   price: bigint,
   expirationDuration: number,
-  imageUrl: string
+  imageUrl: string,
+  coOwner: string,
+  splitFee: bigint = BigInt(0)
 ): Promise<ContractTransactionResponse | null> {
   console.log("\nStep 2: Creating a subscription");
   console.log(`Creating subscription with vaultId: ${vaultId}, price: ${price}`);
@@ -56,7 +58,9 @@ export async function createSubscription(
       vaultId,
       price,
       expirationDuration,
-      imageUrl
+      imageUrl,
+      coOwner,
+      splitFee
     );
     
     console.log("Transaction submitted. Waiting for confirmation...");
@@ -221,14 +225,18 @@ export const NETWORKS = {
     price: ethers.parseEther("0.001"),
     expirationDuration: 60 * 60 * 24 * 30, // 30 days
     imageUrl: "https://example.com/mainnet-test-image.jpg",
+    coOwner: ethers.ZeroAddress, // No co-owner for mainnet test
+    splitFee: BigInt(0), // No split fee for mainnet test
     network: "baseMainnet"
   },
   baseSepolia: {
-    proxyAddress: "0x05889371937b66D9588C5C75be56CE0707bdFcf2",
+    proxyAddress: "0xf364655bE21a8F274dc97fF277E7C06DE3b5AbA1",
     vaultId: "test-knowledge-vault-123",
     price: ethers.parseEther("0.001"),
     expirationDuration: 60 * 60 * 24 * 30, // 30 days
     imageUrl: "https://example.com/test-image.jpg",
+    coOwner: ethers.ZeroAddress, // No co-owner for mainnet test
+    splitFee: BigInt(0), // No split fee for mainnet test
     network: "baseSepolia"
   }
 }; 
