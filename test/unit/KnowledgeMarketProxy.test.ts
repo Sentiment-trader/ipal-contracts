@@ -33,6 +33,14 @@ describe("KnowledgeMarketProxy", function () {
     await proxy.waitForDeployment();
     const proxyAddress = await proxy.getAddress();
 
+    // Initialize Proxy (if not already initialized)
+    const plataformFee = 1200; // 12%
+    const treasury = owner.address; // Replace with the actual treasury address
+
+    const proxyAsMarket = await ethers.getContractAt("KnowledgeMarket", proxyAddress);
+    const tx = await proxyAsMarket.initialize(treasury, plataformFee);
+    await tx.wait();
+
     // Deploy ProxyAdmin
     const ProxyAdmin = await ethers.getContractFactory("ProxyAdmin");
     proxyAdmin = await ProxyAdmin.deploy();
@@ -42,12 +50,6 @@ describe("KnowledgeMarketProxy", function () {
     // Transfer proxy admin to ProxyAdmin contract
     await proxy.changeAdmin(proxyAdminAddress);
 
-    // Initialize the proxy with the desired initial values
-    const initialTreasuryAddress = owner.address; // Replace with the actual treasury address
-    const initialFeePercent = 1200; // 12% as an example
-
-    const proxyAsKnowledgeMarket = await ethers.getContractAt("KnowledgeMarket", proxyAddress);
-    await proxyAsKnowledgeMarket.initialize(initialTreasuryAddress, initialFeePercent);
   });
 
   it("Should return correct name and symbol", async function () {
@@ -136,5 +138,39 @@ describe("KnowledgeMarketProxy", function () {
 
     expect(fee).to.equal(1200); // 12% fee
     expect(treasuryAddress).to.equal(owner.address); // Should be the deployer's address
+  });
+
+  it("Should mint a subscription with co-owner", async function () {
+    const proxyAddress = await proxy.getAddress();
+    const knowledgeMarketAtProxy = await ethers.getContractAt("KnowledgeMarket", proxyAddress);
+    const vaultId = "test-vault";
+    const price = ethers.parseEther("0.01");
+    const expirationDuration = 60 * 60 * 24; // 1 day
+    const imageURL = "https://example.com/image.jpg";
+    const coOwnerAddress = coOwner.address;
+    const coOwnerShare = ethers.toBigInt(500); // 50% share
+    // Call setSubscription via the proxy
+    await knowledgeMarketAtProxy.setSubscription(vaultId, price, expirationDuration, imageURL, coOwnerAddress, coOwnerShare);
+    // Verify the subscription was set by reading from the proxy
+    const subscriptions = await knowledgeMarketAtProxy.getVaultOwnerSubscriptions(owner.address);
+    expect(subscriptions.length).to.be.greaterThan(0);
+    expect(subscriptions[0].vaultId).to.equal(vaultId);
+    expect(subscriptions[0].price).to.equal(price);
+    expect(subscriptions[0].expirationDuration).to.equal(expirationDuration);
+    expect(subscriptions[0].imageURL).to.equal(imageURL);
+    expect(subscriptions[0].coOwner).to.equal(coOwnerAddress);
+    expect(subscriptions[0].splitFee).to.equal(coOwnerShare);
+
+    // Mint a subscription
+    const tx = await knowledgeMarketAtProxy.connect(user).mint(
+        owner.address,
+        vaultId,
+        user.address,
+        { value: price }
+    );
+    await tx.wait();
+    // Verify the user has access to the subscription
+    const hasAccess = await knowledgeMarketAtProxy["hasAccess(address,address)"](owner.address, user.address);
+    expect(hasAccess).to.be.true;
   });
 }); 
