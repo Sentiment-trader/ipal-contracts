@@ -202,7 +202,8 @@ contract KnowledgeMarket is Initializable, ERC4908, ReentrancyGuard {
 
         uint256 excess = msg.value - set.price;
         if (excess > 0) {
-            payable(msg.sender).transfer(excess);
+            (bool sent, ) = payable(msg.sender).call{value: excess}("");
+            require(sent, "Refund failed");
         }
         // Mint the NFT
         _safeMint(to, tokenId);
@@ -218,16 +219,19 @@ contract KnowledgeMarket is Initializable, ERC4908, ReentrancyGuard {
         uint256 remaining = amount;
         uint256 feeAmount = (amount * platformFeePercent) / 10000;
         if (feeAmount > 0) {
-            platformTreasury.transfer(feeAmount);
+            (bool sentFee, ) = platformTreasury.call{value: feeAmount}("");
+            require(sentFee, "Failed to send platform fee");
             remaining -= feeAmount;
         }
         if (set.coOwner != address(0) && set.splitFee > 0) {
             uint256 coPart = (remaining * set.splitFee) / 10000;
             remaining -= coPart;
-            payable(set.coOwner).transfer(coPart);
+            (bool sentCo, ) = payable(set.coOwner).call{value: coPart}("");
+            require(sentCo, "Failed to send co-owner fee");
         }
         if (remaining > 0) {
-            vaultOwner.transfer(remaining);
+            (bool sentVault, ) = vaultOwner.call{value: remaining}("");
+            require(sentVault, "Failed to send vault owner payment");
         }
     }
     
