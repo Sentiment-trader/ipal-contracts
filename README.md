@@ -109,6 +109,12 @@ By storing these details on-chain, IPAL ensures complete transparency and immuta
 
 The KnowledgeMarket contract implements several key features:
 
+**Update July 2025**  
+The `KnowledgeMarket` contract has been enhanced to support:  
+- **Co-ownership** of subscriptions, allowing multiple addresses to share management of a vault  
+- **Platform fee splitting**, enabling automatic distribution of revenue between primary and co-owners  
+- **Improved metadata handling**, with richer on-chain data for vaults and subscription NFTs  
+
 ### Subscription Management
 Vault owners can:
 - Create subscription offerings with custom pricing and duration
