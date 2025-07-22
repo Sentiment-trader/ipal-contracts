@@ -10,7 +10,7 @@ import {Initializable} from "@openzeppelin/contracts/proxy/utils/Initializable.s
  * @title KnowledgeMarket
  * @dev Contract for managing knowledge subscriptions using ERC4908 token standard
  */
-contract KnowledgeMarket is Initializable, ERC4908, ReentrancyGuard {
+contract KnowledgeMarketV2 is Initializable, ERC4908, ReentrancyGuard {
     // Default image URL used when no image is provided
     string private constant DEFAULT_IMAGE_URL = "https://arweave.net/9u0cgTmkSM25PfQpGZ-JzspjOMf4uGFjkvOfKjgQnVY";
 
@@ -33,8 +33,6 @@ contract KnowledgeMarket is Initializable, ERC4908, ReentrancyGuard {
     error EmptyVaultId();
     // Zero address cannot be used for vault owner or recipient
     error ZeroAddress();
-    // Duration cannot be zero
-    error ZeroDuration();
     // Split fee must be between 0 and 10000 (inclusive)
     error SameCoOwner();
     // Fee must be between 0 and 10000 (inclusive)
@@ -79,7 +77,6 @@ contract KnowledgeMarket is Initializable, ERC4908, ReentrancyGuard {
     ) public nonReentrant {
         // Input validation
         if (bytes(vaultId).length == 0) revert EmptyVaultId();
-        if (expirationDuration == 0) revert ZeroDuration();
         if (splitFee > 10000) revert InvalidFee();
         if (coOwner == msg.sender) revert SameCoOwner();
 

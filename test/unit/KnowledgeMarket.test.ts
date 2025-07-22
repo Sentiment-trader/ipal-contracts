@@ -10,14 +10,16 @@ describe("KnowledgeMarket", function () {
   let vaultOwner: SignerWithAddress;
   let user: SignerWithAddress;
   let anotherUser: SignerWithAddress;
+  let coOwner: SignerWithAddress;
 
   const VAULT_ID = "vault123";
   const IMAGE_URL = "https://example.com/image.jpg";
   const PRICE = ethers.parseEther("0.1"); // 0.1 ETH
   const EXPIRATION_DURATION = 86400; // 1 day in seconds
+  const CO_OWNER_SHARE = ethers.toBigInt(500); // 5% share for co-owner 
 
   beforeEach(async function () {
-    [owner, vaultOwner, user, anotherUser] = await ethers.getSigners();
+    [owner, vaultOwner, user, anotherUser, coOwner] = await ethers.getSigners();
 
     // Deploy mock NFT contract
     const MockERC721 = await ethers.getContractFactory("MockERC721");
@@ -29,6 +31,10 @@ describe("KnowledgeMarket", function () {
     knowledgeMarket = await KnowledgeMarket.deploy();
     await knowledgeMarket.waitForDeployment();
 
+    const plataformFee = 1200; // 12% platform fee
+    const treasury = owner.address; // Set the treasury address to the owner's address
+    await knowledgeMarket.initialize(treasury, plataformFee);
+
     // Mint NFT to user
     await mockNft.mint(user.address, 1);
   });
@@ -39,15 +45,57 @@ describe("KnowledgeMarket", function () {
         VAULT_ID,
         PRICE,
         EXPIRATION_DURATION,
-        IMAGE_URL
+        IMAGE_URL,
+        coOwner.address,
+        CO_OWNER_SHARE
       );
 
       const subscriptions = await knowledgeMarket.getVaultOwnerSubscriptions(vaultOwner.address);
+      const platformFee = await knowledgeMarket.platformFeePercent();
+      const platformTreasury = await knowledgeMarket.platformTreasury();
+
       expect(subscriptions.length).to.equal(1);
       expect(subscriptions[0].vaultId).to.equal(VAULT_ID);
       expect(subscriptions[0].imageURL).to.equal(IMAGE_URL);
       expect(subscriptions[0].price).to.equal(PRICE);
       expect(subscriptions[0].expirationDuration).to.equal(EXPIRATION_DURATION);
+      expect(subscriptions[0].coOwner).to.equal(coOwner.address);
+      expect(subscriptions[0].splitFee).to.equal(CO_OWNER_SHARE);
+
+      expect(platformFee).to.equal(1200); // 12% platform fee
+      expect(platformTreasury).to.equal(owner.address); // Treasury should be set to owner's address
+    });
+
+    it("Should allow updating a subscription", async function () {
+      // First set a subscription
+      await knowledgeMarket.connect(vaultOwner).setSubscription(
+        VAULT_ID,
+        PRICE,
+        EXPIRATION_DURATION,
+        IMAGE_URL,
+        coOwner.address,
+        CO_OWNER_SHARE
+      );
+
+      // Then update it
+      const NEW_PRICE = ethers.parseEther("0.2"); // New price
+      const NEW_EXPIRATION_DURATION = 172800; // 2 days in seconds
+      const NEW_IMAGE_URL = "https://example.com/new_image.jpg";
+      const NEW_CO_OWNER_SHARE = ethers.toBigInt(1000); // 10% share for co-owner
+
+      await knowledgeMarket.connect(vaultOwner).setSubscription(
+        VAULT_ID,
+        NEW_PRICE,
+        NEW_EXPIRATION_DURATION,
+        NEW_IMAGE_URL,
+        coOwner.address,
+        NEW_CO_OWNER_SHARE
+      );
+
+      const accessControl = await knowledgeMarket.getAccessControl(vaultOwner.address, VAULT_ID);
+      expect(accessControl.price).to.equal(NEW_PRICE);
+      expect(accessControl.expirationDuration).to.equal(NEW_EXPIRATION_DURATION);
+      expect(accessControl.splitFee).to.equal(NEW_CO_OWNER_SHARE);
     });
 
     it("Should allow deleting a subscription", async function () {
@@ -56,7 +104,9 @@ describe("KnowledgeMarket", function () {
         VAULT_ID,
         PRICE,
         EXPIRATION_DURATION,
-        IMAGE_URL
+        IMAGE_URL,
+        coOwner.address,
+        CO_OWNER_SHARE
       );
 
       // Then delete it
@@ -72,7 +122,9 @@ describe("KnowledgeMarket", function () {
         VAULT_ID,
         PRICE,
         EXPIRATION_DURATION,
-        "" // Empty image URL
+        "", // Empty image URL
+        coOwner.address,
+        CO_OWNER_SHARE
       );
 
       // Mint with this subscription
@@ -95,7 +147,9 @@ describe("KnowledgeMarket", function () {
         VAULT_ID,
         PRICE,
         EXPIRATION_DURATION,
-        IMAGE_URL
+        IMAGE_URL,
+        coOwner.address,
+        CO_OWNER_SHARE
       ))
       .to.emit(knowledgeMarket, "SubscriptionCreated")
       .withArgs(vaultOwner.address, VAULT_ID, PRICE, EXPIRATION_DURATION);
@@ -107,7 +161,9 @@ describe("KnowledgeMarket", function () {
         VAULT_ID,
         PRICE,
         EXPIRATION_DURATION,
-        IMAGE_URL
+        IMAGE_URL,
+        coOwner.address,
+        CO_OWNER_SHARE
       );
 
       // Then delete it and check for event
@@ -122,9 +178,54 @@ describe("KnowledgeMarket", function () {
           "", // Empty vaultId
           PRICE,
           EXPIRATION_DURATION,
-          IMAGE_URL
+          IMAGE_URL,
+          coOwner.address,
+          CO_OWNER_SHARE
         )
       ).to.be.revertedWithCustomError(knowledgeMarket, "EmptyVaultId");
+    });
+
+    it("Should reject co-owner same address vault owner", async function () {
+      await expect(
+        knowledgeMarket.connect(vaultOwner).setSubscription(
+          VAULT_ID,
+          PRICE,
+          EXPIRATION_DURATION,
+          IMAGE_URL,
+          vaultOwner.address,
+          CO_OWNER_SHARE
+        )
+      ).to.be.revertedWithCustomError(knowledgeMarket, "SameCoOwner");
+    });
+
+    it ("Should reject invalid fee percentage to co-owner", async function () {
+      await expect(
+        knowledgeMarket.connect(vaultOwner).setSubscription(
+          VAULT_ID,
+          PRICE,
+          EXPIRATION_DURATION,
+          IMAGE_URL,
+          coOwner.address,
+          10001 // Invalid fee percentage
+        )
+      ).to.be.revertedWithCustomError(knowledgeMarket, "InvalidFee");
+    });
+
+    it ("Should use 100% share for co-owner", async function () {
+      // Set subscription with 100% share for co-owner
+      await knowledgeMarket.connect(vaultOwner).setSubscription(
+        VAULT_ID,
+        PRICE,
+        EXPIRATION_DURATION,
+        IMAGE_URL,
+        coOwner.address,
+        10000 // 100% share
+      );
+      const subscriptions = await knowledgeMarket.getVaultOwnerSubscriptions(vaultOwner.address);
+      const subscription = subscriptions.find(s => s.vaultId === VAULT_ID);
+      expect(subscription).to.not.be.undefined;
+      expect(subscription!.splitFee).to.equal(10000); // 100% share
+      expect(subscription!.coOwner).to.equal(coOwner.address);
     });
 
     it("Should allow free NFTs with zero price", async function () {
@@ -133,7 +234,9 @@ describe("KnowledgeMarket", function () {
         "freeVault",
         0, // Zero price
         EXPIRATION_DURATION,
-        IMAGE_URL
+        IMAGE_URL,
+        coOwner.address,
+        CO_OWNER_SHARE
       );
 
       const subscriptions = await knowledgeMarket.getVaultOwnerSubscriptions(vaultOwner.address);
@@ -164,7 +267,9 @@ describe("KnowledgeMarket", function () {
           VAULT_ID,
           PRICE,
           0, // Zero duration
-          IMAGE_URL
+          IMAGE_URL,
+          coOwner.address,
+          CO_OWNER_SHARE
         )
       ).to.be.revertedWithCustomError(knowledgeMarket, "ZeroDuration");
     });
@@ -192,7 +297,9 @@ describe("KnowledgeMarket", function () {
         VAULT_ID,
         PRICE,
         EXPIRATION_DURATION,
-        IMAGE_URL
+        IMAGE_URL,
+        coOwner.address,
+        CO_OWNER_SHARE
       );
     });
 
@@ -209,6 +316,53 @@ describe("KnowledgeMarket", function () {
       expect(deal.vaultOwner).to.equal(vaultOwner.address);
       expect(deal.imageURL).to.equal(IMAGE_URL);
       expect(deal.price).to.equal(PRICE);
+    });
+
+    it("Should send 12% platform fee to the platformTreasury", async function () {
+      const treasuryAddress = await knowledgeMarket.platformTreasury();
+      const initialBalance = await ethers.provider.getBalance(treasuryAddress);
+
+      const PLATFORM_FEE = await knowledgeMarket.platformFeePercent(); // 1200 (12%)
+
+      const tx = await knowledgeMarket.connect(user).mint(
+        vaultOwner.address,
+        VAULT_ID,
+        user.address,
+        { value: PRICE }
+      );
+      
+      await tx.wait();
+
+      const finalBalance = await ethers.provider.getBalance(treasuryAddress);
+      const expectedFee = (PRICE * PLATFORM_FEE) / 10000n;
+      expect(finalBalance - initialBalance).to.equal(expectedFee);
+    });
+
+    it("Should send correct creator amount to the vaultOwner", async function () {
+      const vaultOwnerInitialBalance = (await ethers.provider.getBalance(vaultOwner.address));
+      const PLATFORM_FEE = await knowledgeMarket.platformFeePercent();
+
+      const tx = await knowledgeMarket.connect(user).mint(
+        vaultOwner.address,
+        VAULT_ID,
+        user.address,
+        { value: PRICE }
+      );
+      await tx.wait();
+
+      const vaultOwnerFinalBalance = (await ethers.provider.getBalance(vaultOwner.address));
+
+      const expectedPlatformFee = (PRICE * PLATFORM_FEE) / 10000n;
+      const expectedCreatorAmount = PRICE - expectedPlatformFee;
+      const expectedAmount = vaultOwnerFinalBalance - vaultOwnerInitialBalance;
+
+      if (CO_OWNER_SHARE > 0) {
+        const coOwnerShare = (expectedCreatorAmount * CO_OWNER_SHARE) / 10000n;
+        const expectedCreatorFinalAmount = expectedCreatorAmount - coOwnerShare;
+        expect(expectedAmount).to.equal(expectedCreatorFinalAmount);
+      } else {
+        expect(expectedAmount).to.equal(expectedCreatorAmount);
+      }
     });
 
     it("Should fail if payment amount is incorrect", async function () {
@@ -279,7 +433,9 @@ describe("KnowledgeMarket", function () {
         VAULT_ID,
         PRICE,
         EXPIRATION_DURATION,
-        IMAGE_URL
+        IMAGE_URL,
+        coOwner.address,
+        CO_OWNER_SHARE
       );
     });
 
@@ -345,7 +501,9 @@ describe("KnowledgeMarket", function () {
         VAULT_ID,
         PRICE,
         EXPIRATION_DURATION,
-        IMAGE_URL
+        IMAGE_URL,
+        coOwner.address,
+        CO_OWNER_SHARE
       );
 
       // Mint an NFT
@@ -386,7 +544,9 @@ describe("KnowledgeMarket", function () {
         VAULT_ID,
         PRICE,
         EXPIRATION_DURATION,
-        IMAGE_URL
+        IMAGE_URL,
+        coOwner.address,
+        CO_OWNER_SHARE
       );
       
       // Add second subscription
@@ -394,7 +554,9 @@ describe("KnowledgeMarket", function () {
         "vault456",
         PRICE * 2n,
         EXPIRATION_DURATION * 2,
-        "https://example.com/image2.jpg"
+        "https://example.com/image2.jpg",
+        coOwner.address,
+        CO_OWNER_SHARE
       );
       
       const subscriptions = await knowledgeMarket.getVaultOwnerSubscriptions(vaultOwner.address);

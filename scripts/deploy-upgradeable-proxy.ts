@@ -10,7 +10,6 @@ async function main() {
   await knowledgeMarket.waitForDeployment();
   const knowledgeMarketAddress = await knowledgeMarket.getAddress();
   console.log(`   Implementation deployed at: ${knowledgeMarketAddress}`);
-
   // 2. Deploy KnowledgeMarketProxy
   console.log("2. Deploying KnowledgeMarketProxy...");
   const KnowledgeMarketProxy = await ethers.getContractFactory("KnowledgeMarketProxy");
@@ -18,6 +17,29 @@ async function main() {
   await proxy.waitForDeployment();
   const proxyAddress = await proxy.getAddress();
   console.log(`   Proxy deployed at: ${proxyAddress}`);
+
+  // Initialize Proxy (if not already initialized)
+  console.log("Initializing proxy contract...");
+  const [owner] = await ethers.getSigners();
+  
+  const plataformFee = 1200; // 12%
+  const treasury = owner.address; // Replace with the actual treasury address
+
+  const proxyAsMarket = await ethers.getContractAt("KnowledgeMarket", proxyAddress);
+
+  try {
+    const currentTreasury = await proxyAsMarket.platformTreasury();
+
+    if (currentTreasury === ethers.ZeroAddress) {
+      const tx = await proxyAsMarket.initialize(treasury, plataformFee);
+      await tx.wait();
+      console.log("   Proxy initialized successfully.");
+    } else {
+      console.log("   Proxy already initialized. Skipping initialization.");
+    }
+  } catch (err: any) {
+    console.error("   Failed to check or initialize proxy:", err.message);
+  }
 
   // 3. Deploy ProxyAdmin
   console.log("3. Deploying ProxyAdmin...");
