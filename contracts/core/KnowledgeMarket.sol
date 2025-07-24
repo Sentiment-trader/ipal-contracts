@@ -68,6 +68,8 @@ contract KnowledgeMarket is Initializable, ERC4908, ReentrancyGuard {
      * @param price Cost to mint an access NFT (can be 0 for free NFTs)
      * @param expirationDuration How long access lasts (in seconds)
      * @param imageURL URL for the image representing this subscription
+     * @param coOwner Address of the co-owner who shares revenue (can be 0x0 for no co-owner)
+     * @param splitFee Percentage of revenue to share with the co-owner (0-10000, where 10000 = 100%)
      */
     function setSubscription(
         string calldata vaultId,
