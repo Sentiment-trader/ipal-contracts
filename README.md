@@ -111,7 +111,7 @@ The KnowledgeMarket contract implements several key features:
 
 **Update July 2025**  
 The `KnowledgeMarket` contract has been enhanced to support:  
-- **Co-ownership** of subscriptions, allowing multiple addresses to share management of a vault  
+- **Co-ownership** of subscriptions, allowing one address to share management of a vault  
 - **Platform fee splitting**, enabling automatic distribution of revenue between primary and co-owners  
 - **Improved metadata handling**, with richer on-chain data for vaults and subscription NFTs  
 
