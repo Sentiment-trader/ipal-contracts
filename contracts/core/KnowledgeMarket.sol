@@ -5,6 +5,7 @@ import {ERC4908} from "erc-4908/contracts/ERC4908.sol";
 import {Strings} from "@openzeppelin/contracts/utils/Strings.sol";
 import {ReentrancyGuard} from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 import {Initializable} from "@openzeppelin/contracts/proxy/utils/Initializable.sol";
+import {Base64} from "@openzeppelin/contracts/utils/Base64.sol";
 
 /**
  * @title KnowledgeMarket
@@ -263,6 +264,24 @@ contract KnowledgeMarket is Initializable, ERC4908, ReentrancyGuard {
         return false;
     }
 
+    function escape(string memory input) internal pure returns (string memory) {
+        bytes memory inputBytes = bytes(input);
+        bytes memory output;
+        for (uint i = 0; i < inputBytes.length; i++) {
+            bytes1 char = inputBytes[i];
+            if (char == '"') {
+                output = abi.encodePacked(output, "\\\"");
+            } else if (char == '\\') {
+                output = abi.encodePacked(output, "\\\\");
+            } else if (char == '\n') {
+                output = abi.encodePacked(output, "\\n");
+            } else {
+                output = abi.encodePacked(output, char);
+            }
+        }
+        return string(output);
+    }
+
     /**
      * @dev Returns the token URI for an NFT
      * @param id Token ID
@@ -277,21 +296,28 @@ contract KnowledgeMarket is Initializable, ERC4908, ReentrancyGuard {
             ? deal.imageURL
             : DEFAULT_IMAGE_URL;
 
-        string memory json = string.concat(
-            "{",
-                "\"name\":\"", data.resourceId, "\",",
-                "\"description\":\"This NFT grants access to a knowledge vault.\",",
-                "\"external_url\":\"https://knowledge-market.io/vaults/", data.resourceId, "\",",
-                "\"image\":\"", imageUrl, "\",",
-                "\"attributes\":[",
-                    "{ \"trait_type\": \"Price\", \"value\": ", Strings.toString(deal.price), " },",
-                    "{ \"trait_type\": \"Platform Fee (%)\", \"value\": ", Strings.toString(platformFeePercent), " },",
-                    "{ \"trait_type\": \"Split Fee (%)\", \"value\": ", Strings.toString(set.splitFee), " },",
-                    "{ \"trait_type\": \"Expiration date\", \"display_type\": \"date\", \"value\": ", Strings.toString(data.expirationTime), " }",
-                "]",
-            "}"
+        string memory nameEscaped = escape(data.resourceId);
+        string memory urlEscaped = escape(data.resourceId);
+        string memory imageEscaped = escape(imageUrl);
+
+        string memory json = string(
+            abi.encodePacked(
+                "{",
+                    "\"name\":\"", nameEscaped, "\",",
+                    "\"description\":\"This NFT grants access to a knowledge vault.\",",
+                    "\"external_url\":\"https://knowledge-market.io/vaults/", urlEscaped, "\",",
+                    "\"image\":\"", imageEscaped, "\",",
+                    "\"attributes\":[",
+                        "{ \"trait_type\": \"Price\", \"value\": ", Strings.toString(deal.price), " },",
+                        "{ \"trait_type\": \"Platform Fee (%)\", \"value\": ", Strings.toString(platformFeePercent), " },",
+                        "{ \"trait_type\": \"Split Fee (%)\", \"value\": ", Strings.toString(set.splitFee), " },",
+                        "{ \"trait_type\": \"Expiration date\", \"display_type\": \"date\", \"value\": ", Strings.toString(data.expirationTime), " }",
+                    "]",
+                "}"
+            )
         );
 
-        return string.concat("data:application/json;utf8,", json);
+        string memory encoded = Base64.encode(bytes(json));
+        return string(abi.encodePacked("data:application/json;base64,", encoded));
     }
 } 
