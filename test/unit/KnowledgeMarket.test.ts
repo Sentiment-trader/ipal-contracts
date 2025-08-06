@@ -139,7 +139,10 @@ describe("KnowledgeMarket", function () {
       
       // Check tokenURI contains the default image
       const tokenURI = await knowledgeMarket.tokenURI(tokenId);
-      expect(tokenURI).to.include("https://arweave.net/"); // Part of the DEFAULT_IMAGE_URL
+      const base64 = tokenURI.split(',')[1];
+      const json = atob(base64); // or Buffer.from(base64, 'base64').toString()
+
+      expect(json).to.include("https://arweave.net/"); // Part of the DEFAULT_IMAGE_URL
     });
 
     it("Should emit SubscriptionCreated event", async function () {
@@ -517,12 +520,14 @@ describe("KnowledgeMarket", function () {
 
     it("Should return valid tokenURI with expected metadata", async function() {
       const tokenId = await knowledgeMarket.totalSupply() - 1n;
-      const uri = await knowledgeMarket.tokenURI(tokenId);
+      const tokenURI = await knowledgeMarket.tokenURI(tokenId);
+      const base64 = tokenURI.split(',')[1];
+      const json = atob(base64);
       
       // Check that the URI contains expected fields
-      expect(uri).to.include(VAULT_ID);
-      expect(uri).to.include(IMAGE_URL);
-      expect(uri).to.include("knowledge vault");
+      expect(json).to.include(VAULT_ID);
+      expect(json).to.include(IMAGE_URL);
+      expect(json).to.include("knowledge vault");
     });
   });
 
