@@ -288,6 +288,8 @@ contract KnowledgeMarket is Initializable, ERC4908, ReentrancyGuard {
      * @return JSON metadata as a string
      */
     function tokenURI(uint256 id) public view override returns (string memory) {
+        _requireOwned(id);
+
         Metadata memory data = nftData[id];
         Deal memory deal = dealInfo[id];
         Settings memory set = accessControl[data.hash];
