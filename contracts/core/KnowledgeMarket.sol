@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.24;
-
-import {ERC4908} from "erc-4908/contracts/ERC4908.sol";
+import {KnowledgeAccessNFT} from "./KnowledgeAccessNFT.sol";
 import {Strings} from "@openzeppelin/contracts/utils/Strings.sol";
 import {ReentrancyGuard} from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 import {Initializable} from "@openzeppelin/contracts/proxy/utils/Initializable.sol";
@@ -9,9 +8,9 @@ import {Base64} from "@openzeppelin/contracts/utils/Base64.sol";
 
 /**
  * @title KnowledgeMarket
- * @dev Contract for managing knowledge subscriptions using ERC4908 token standard
+ * @dev Contract for managing knowledge subscriptions using KnowledgeAccessNFT token standard
  */
-contract KnowledgeMarket is Initializable, ERC4908, ReentrancyGuard {
+contract KnowledgeMarket is Initializable, KnowledgeAccessNFT, ReentrancyGuard {
     // Default image URL used when no image is provided
     string private constant DEFAULT_IMAGE_URL = "https://arweave.net/9u0cgTmkSM25PfQpGZ-JzspjOMf4uGFjkvOfKjgQnVY";
 
@@ -56,7 +55,7 @@ contract KnowledgeMarket is Initializable, ERC4908, ReentrancyGuard {
     event SubscriptionDeleted(address indexed vaultOwner, string vaultId);
     event AccessGranted(address indexed vaultOwner, string vaultId, address indexed customer, uint256 tokenId, uint256 price);
 
-    constructor() ERC4908("Knowledge Market Access", "KMA") {}
+    constructor() KnowledgeAccessNFT("Knowledge Market Access", "KMA") {}
 
     function initialize(address payable _treasury, uint32 _fee) public initializer {
         if (_treasury == address(0)) revert ZeroAddress();
