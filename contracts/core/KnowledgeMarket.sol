@@ -47,9 +47,12 @@ contract KnowledgeMarket is Initializable, ERC4908, ReentrancyGuard {
     mapping(uint256 => Deal) public dealInfo;
     // Maps image URLs to their corresponding NFT metadata
     mapping(address => mapping(string => string)) private subscriptionImageURLs;
+    // Maps has subscription existence for vault owners
+    mapping(address => mapping(string => bool)) private hasSubscription;
 
     // Events for important state changes
     event SubscriptionCreated(address indexed vaultOwner, string vaultId, uint256 price, uint32 expirationDuration);
+    event SubscriptionUpdated(address indexed vaultOwner, string vaultId, uint256 price, uint32 expirationDuration);
     event SubscriptionDeleted(address indexed vaultOwner, string vaultId);
     event AccessGranted(address indexed vaultOwner, string vaultId, address indexed customer, uint256 tokenId, uint256 price);
 
@@ -88,13 +91,33 @@ contract KnowledgeMarket is Initializable, ERC4908, ReentrancyGuard {
 
         // Use the default image if none provided
         string memory finalImageURL = bytes(imageURL).length == 0 ? DEFAULT_IMAGE_URL : imageURL;
-        
+
+        if (hasSubscription[msg.sender][vaultId]) {
+            Subscription[] storage subscriptions = vaultOwnerSubscriptions[msg.sender];
+            for (uint256 i = 0; i < subscriptions.length; i++) {
+                if (keccak256(abi.encodePacked(subscriptions[i].vaultId)) 
+                        == keccak256(abi.encodePacked(vaultId))) {
+                    subscriptions[i].imageURL = finalImageURL;
+                    break;
+                }
+            }
+            subscriptionImageURLs[msg.sender][vaultId] = finalImageURL;
+            
+            setAccess(vaultId, price, expirationDuration, coOwner, splitFee);
+            
+            emit SubscriptionUpdated(msg.sender, vaultId, price, expirationDuration);
+
+        } else {
+
+        hasSubscription[msg.sender][vaultId] = true;
+
         vaultOwnerSubscriptions[msg.sender].push(Subscription(vaultId, finalImageURL));
         subscriptionImageURLs[msg.sender][vaultId] = finalImageURL;
 
         setAccess(vaultId, price, expirationDuration, coOwner, splitFee);
 
         emit SubscriptionCreated(msg.sender, vaultId, price, expirationDuration);
+        }
     }
 
     /**
@@ -121,6 +144,7 @@ contract KnowledgeMarket is Initializable, ERC4908, ReentrancyGuard {
 
         if (found) {
             delete subscriptionImageURLs[msg.sender][vaultId];
+            delete hasSubscription[msg.sender][vaultId];
             delAccess(vaultId);
             emit SubscriptionDeleted(msg.sender, vaultId);
         }
