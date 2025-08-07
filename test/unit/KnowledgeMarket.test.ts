@@ -430,6 +430,26 @@ describe("KnowledgeMarket", function () {
         )
       ).to.be.revertedWithCustomError(knowledgeMarket, "EmptyVaultId");
     });
+
+    it("Should fail if user already has access", async function () {
+      // First mint the access NFT
+      await knowledgeMarket.connect(user).mint(
+        vaultOwner.address,
+        VAULT_ID,
+        user.address,
+        { value: PRICE }
+      );
+
+      // Then try to mint again
+      await expect(
+        knowledgeMarket.connect(user).mint(
+          vaultOwner.address,
+          VAULT_ID,
+          user.address,
+          { value: PRICE }
+        )
+      ).to.be.revertedWithCustomError(knowledgeMarket, "AlreadyHasActiveAccess");
+    });
   });
 
   describe("Access Control", function () {
