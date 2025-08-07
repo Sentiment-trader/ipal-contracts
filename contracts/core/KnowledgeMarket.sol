@@ -37,6 +37,8 @@ contract KnowledgeMarket is Initializable, KnowledgeAccessNFT, ReentrancyGuard {
     error SameCoOwner();
     // Fee must be between 0 and 10000 (inclusive)
     error InvalidFee();
+    // Has access already granted to this vault
+    error AlreadyHasActiveAccess();
 
     // Maps vault owner addresses to their subscription offerings
     mapping(address => Subscription[]) public vaultOwnerSubscriptions;
@@ -200,9 +202,10 @@ contract KnowledgeMarket is Initializable, KnowledgeAccessNFT, ReentrancyGuard {
         if (to == address(0)) revert ZeroAddress();
         if (bytes(vaultId).length == 0) revert EmptyVaultId();
 
+        (bool hasActiveAccess,,) = this.hasAccess(vaultOwner, vaultId, to);
+        if (hasActiveAccess) revert AlreadyHasActiveAccess();
+
         bytes32 hash = _hash(vaultOwner, vaultId);
-        if (!this.existAccess(hash)) revert MintUnavailable(hash);
-        
         Settings memory set = accessControl[hash];
 
         if (msg.value < set.price) revert InsufficientFunds(set.price);
