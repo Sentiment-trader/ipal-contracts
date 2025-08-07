@@ -55,7 +55,7 @@ abstract contract KnowledgeAccessNFT is IKnowledgeAccessControl, ERC721, ERC721E
         uint32 expirationDuration,
         address coOwner,
         uint32 splitFee
-    ) public {
+    ) internal {
         _setAccess(msg.sender, resourceId, price, expirationDuration, coOwner, splitFee);
     }
 
@@ -124,7 +124,7 @@ abstract contract KnowledgeAccessNFT is IKnowledgeAccessControl, ERC721, ERC721E
                 : (false, "user doesn't own the NFT", -1);
     }
 
-    function delAccess(string calldata resourceId) public {
+    function delAccess(string calldata resourceId) internal {
         bytes32 hash = _hash(msg.sender, resourceId);
         delete accessControl[hash];
     }
