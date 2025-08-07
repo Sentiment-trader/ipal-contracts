@@ -50,8 +50,8 @@ contract KnowledgeMarket is Initializable, KnowledgeAccessNFT, ReentrancyGuard {
     mapping(address => mapping(string => bool)) private hasSubscription;
 
     // Events for important state changes
-    event SubscriptionCreated(address indexed vaultOwner, string vaultId, uint256 price, uint32 expirationDuration);
-    event SubscriptionUpdated(address indexed vaultOwner, string vaultId, uint256 price, uint32 expirationDuration);
+    event SubscriptionCreated(address indexed vaultOwner, string vaultId, uint256 price, uint32 expirationDuration, address coOwner, uint32 splitFee);
+    event SubscriptionUpdated(address indexed vaultOwner, string vaultId, uint256 price, uint32 expirationDuration, address coOwner, uint32 splitFee);
     event SubscriptionDeleted(address indexed vaultOwner, string vaultId);
     event AccessGranted(address indexed vaultOwner, string vaultId, address indexed customer, uint256 tokenId, uint256 price);
 
@@ -103,7 +103,7 @@ contract KnowledgeMarket is Initializable, KnowledgeAccessNFT, ReentrancyGuard {
             
             setAccess(vaultId, price, expirationDuration, coOwner, splitFee);
             
-            emit SubscriptionUpdated(msg.sender, vaultId, price, expirationDuration);
+            emit SubscriptionUpdated(msg.sender, vaultId, price, expirationDuration, coOwner, splitFee);
 
         } else {
 
@@ -114,7 +114,7 @@ contract KnowledgeMarket is Initializable, KnowledgeAccessNFT, ReentrancyGuard {
 
         setAccess(vaultId, price, expirationDuration, coOwner, splitFee);
 
-        emit SubscriptionCreated(msg.sender, vaultId, price, expirationDuration);
+        emit SubscriptionCreated(msg.sender, vaultId, price, expirationDuration, coOwner, splitFee);
         }
     }
 
