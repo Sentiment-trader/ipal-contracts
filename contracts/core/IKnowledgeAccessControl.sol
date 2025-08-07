@@ -2,25 +2,6 @@
 pragma solidity ^0.8.24;
 
 interface IKnowledgeAccessControl {
-    /// @notice Allows content access NFT to be minted
-    /// @dev This function is meant to be called by the content author
-    /// @param resourceId The content identification from the off-chain content service provider
-    /// @param price The mint price, in other terms the access price for this particular content
-    /// @param expirationDuration The expiration time of the access
-    /// @param coOwner The address of the co-owner of the content, if any
-    /// @param splitFee The fee split percentage for the co-owner, base 10000 (ex: 3000 = 30%)
-    function setAccess(
-        string calldata resourceId,
-        uint256 price,
-        uint32 expirationDuration,
-        address coOwner,
-        uint32 splitFee
-    ) external;
-
-    /// @notice Disallows content access NFT to be minted, the remaining NFTs can still be used
-    /// @dev This function is meant to be called by the content author
-    /// @param resourceId The content identification from the off-chain content service provider
-    function delAccess(string calldata resourceId) external;
 
     /// @notice Check for the access to a particular content from a particular consumer
     /// @dev This function is meant to be called by the content provider, the 2 first parameters
