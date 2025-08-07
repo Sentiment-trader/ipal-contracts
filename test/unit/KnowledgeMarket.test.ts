@@ -264,17 +264,20 @@ describe("KnowledgeMarket", function () {
       expect(hasAccess).to.be.true;
     });
 
-    it("Should reject zero duration", async function () {
-      await expect(
-        knowledgeMarket.connect(vaultOwner).setSubscription(
+    it("Should accept zero duration", async function () {
+      await knowledgeMarket.connect(vaultOwner).setSubscription(
           VAULT_ID,
           PRICE,
           0, // Zero duration
           IMAGE_URL,
           coOwner.address,
           CO_OWNER_SHARE
-        )
-      ).to.be.revertedWithCustomError(knowledgeMarket, "ZeroDuration");
+      );
+
+      const subscriptions = await knowledgeMarket.getVaultOwnerSubscriptions(vaultOwner.address);
+      const subscription = subscriptions.find(s => s.vaultId === VAULT_ID);
+      expect(subscription).to.not.be.undefined;
+      expect(subscription!.expirationDuration).to.equal(0); // Zero duration accepted
     });
 
     it("Should reject empty vaultId when deleting", async function () {
