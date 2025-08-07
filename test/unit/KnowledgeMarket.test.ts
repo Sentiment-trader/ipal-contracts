@@ -155,7 +155,7 @@ describe("KnowledgeMarket", function () {
         CO_OWNER_SHARE
       ))
       .to.emit(knowledgeMarket, "SubscriptionCreated")
-      .withArgs(vaultOwner.address, VAULT_ID, PRICE, EXPIRATION_DURATION);
+      .withArgs(vaultOwner.address, VAULT_ID, PRICE, EXPIRATION_DURATION, coOwner.address, CO_OWNER_SHARE);
     });
 
     it("Should emit SubscriptionDeleted event", async function () {
