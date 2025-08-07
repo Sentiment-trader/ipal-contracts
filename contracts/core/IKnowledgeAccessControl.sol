@@ -52,10 +52,6 @@ interface IKnowledgeAccessControl {
         string calldata resourceId
     ) external view returns (uint256 price, uint32 expirationDuration, address coOwner, uint32 splitFee);
 
-    /// @notice The author hasn't activated mint access for this resourceId
-    /// @param accessHash The hash of the author and resourceId, used as the index of settings mapping
-    error MintUnavailable(bytes32 accessHash);
-
     /// @notice The author's minting fee has not been met by the consumer
     /// @param expectedPrice A message indicating the minting fee is not met
     error InsufficientFunds(uint256 expectedPrice);
