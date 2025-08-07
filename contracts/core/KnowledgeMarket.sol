@@ -260,6 +260,14 @@ contract KnowledgeMarket is Initializable, KnowledgeAccessNFT, ReentrancyGuard {
             require(sentVault, "Failed to send vault owner payment");
         }
     }
+
+    /**
+     * @dev Prevents accidental direct ETH transfers
+     * @notice Use the mint() function to purchase access NFTs
+     */
+    receive() external payable {
+        revert("Direct ETH transfers not allowed. Use mint() function.");
+    }
     
     /**
      * @dev Checks if a customer has access to any of a vault owner's resources
