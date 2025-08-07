@@ -33,8 +33,6 @@ contract KnowledgeMarket is Initializable, KnowledgeAccessNFT, ReentrancyGuard {
     error EmptyVaultId();
     // Zero address cannot be used for vault owner or recipient
     error ZeroAddress();
-    // Duration cannot be zero
-    error ZeroDuration();
     // Split fee must be between 0 and 10000 (inclusive)
     error SameCoOwner();
     // Fee must be between 0 and 10000 (inclusive)
@@ -84,7 +82,6 @@ contract KnowledgeMarket is Initializable, KnowledgeAccessNFT, ReentrancyGuard {
     ) public nonReentrant {
         // Input validation
         if (bytes(vaultId).length == 0) revert EmptyVaultId();
-        if (expirationDuration == 0) revert ZeroDuration();
         if (splitFee > 10000) revert InvalidFee();
         if (coOwner == msg.sender) revert SameCoOwner();
 
