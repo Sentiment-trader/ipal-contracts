@@ -35,6 +35,9 @@ describe("KnowledgeMarket", function () {
     const treasury = owner.address; // Set the treasury address to the owner's address
     await knowledgeMarket.initialize(treasury, plataformFee);
 
+    // Register vault
+    await knowledgeMarket.connect(vaultOwner).registerVault(VAULT_ID);
+
     // Mint NFT to user
     await mockNft.mint(user.address, 1);
   });
@@ -234,7 +237,7 @@ describe("KnowledgeMarket", function () {
     it("Should allow free NFTs with zero price", async function () {
       // Set subscription with zero price
       await knowledgeMarket.connect(vaultOwner).setSubscription(
-        "freeVault",
+       VAULT_ID,
         0, // Zero price
         EXPIRATION_DURATION,
         IMAGE_URL,
@@ -243,14 +246,14 @@ describe("KnowledgeMarket", function () {
       );
 
       const subscriptions = await knowledgeMarket.getVaultOwnerSubscriptions(vaultOwner.address);
-      const freeSubscription = subscriptions.find(s => s.vaultId === "freeVault");
+      const freeSubscription = subscriptions.find(s => s.vaultId === VAULT_ID);
       expect(freeSubscription).to.not.be.undefined;
       expect(freeSubscription!.price).to.equal(0);
       
       // Test minting a free NFT
       await knowledgeMarket.connect(user).mint(
         vaultOwner.address,
-        "freeVault",
+        VAULT_ID,
         user.address,
         { value: 0 }
       );
@@ -258,7 +261,7 @@ describe("KnowledgeMarket", function () {
       // Check the user has access
       const [hasAccess] = await knowledgeMarket['hasAccess(address,string,address)'](
         vaultOwner.address, 
-        "freeVault", 
+        VAULT_ID, 
         user.address
       );
       expect(hasAccess).to.be.true;
@@ -294,6 +297,49 @@ describe("KnowledgeMarket", function () {
       const subscriptions = await knowledgeMarket.getVaultOwnerSubscriptions(vaultOwner.address);
       expect(subscriptions.length).to.equal(0);
     });
+
+    it("Should fail if vault id is not registered", async function () {
+      await expect(
+        knowledgeMarket.connect(vaultOwner).setSubscription(
+          "nonexistentVault",
+          PRICE,
+          EXPIRATION_DURATION,
+          IMAGE_URL,
+          coOwner.address,
+          CO_OWNER_SHARE
+        )
+      ).to.be.revertedWithCustomError(knowledgeMarket, "NotVaultOwner");
+    });
+
+    it("Should fail if vault is already registered", async function () {
+      await expect(
+        knowledgeMarket.connect(vaultOwner).registerVault(VAULT_ID)
+      ).to.be.revertedWithCustomError(knowledgeMarket, "AlreadyHasRegistered");
+    });
+
+    it("Should fail trying to register a vault with empty ID", async function () {
+      await expect(
+        knowledgeMarket.connect(vaultOwner).registerVault("")
+      ).to.be.revertedWithCustomError(knowledgeMarket, "EmptyVaultId");
+    });
+
+    it("Should fail if vault owner tries to set subscription for another vault that they don't own", async function () {
+      // Register another vault
+      await knowledgeMarket.connect(vaultOwner).registerVault("anotherVault");
+
+      // Try to set subscription for another vault
+      await expect(
+        knowledgeMarket.connect(anotherUser).setSubscription(
+          "anotherVault",
+          PRICE,
+          EXPIRATION_DURATION,
+          IMAGE_URL,
+          coOwner.address,
+          CO_OWNER_SHARE
+        )
+      ).to.be.revertedWithCustomError(knowledgeMarket, "NotVaultOwner");
+    });
+
   });
 
   describe("Minting", function () {
@@ -576,6 +622,9 @@ describe("KnowledgeMarket", function () {
         coOwner.address,
         CO_OWNER_SHARE
       );
+
+      // register another vault
+      await knowledgeMarket.connect(vaultOwner).registerVault("vault456");
       
       // Add second subscription
       await knowledgeMarket.connect(vaultOwner).setSubscription(
