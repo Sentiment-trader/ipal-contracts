@@ -39,7 +39,13 @@ contract KnowledgeMarket is Initializable, KnowledgeAccessNFT, ReentrancyGuard {
     error InvalidFee();
     // Has access already granted to this vault
     error AlreadyHasActiveAccess();
+    // Has already registered a vault with this ID
+    error AlreadyHasRegistered();
+    // Not the vault owner trying to set subscription
+    error NotVaultOwner();
 
+    // Maps vault IDs to their owners
+    mapping(string => address) public vaults;
     // Maps vault owner addresses to their subscription offerings
     mapping(address => Subscription[]) public vaultOwnerSubscriptions;
     // Maps NFT IDs to their deal information
@@ -66,6 +72,17 @@ contract KnowledgeMarket is Initializable, KnowledgeAccessNFT, ReentrancyGuard {
     }
 
     /**
+     * @dev Registers a new knowledge vault with a unique ID
+     * @param vaultId Unique identifier for the knowledge vault
+     */
+    function registerVault(string calldata vaultId) public {
+        if (bytes(vaultId).length == 0) revert EmptyVaultId();
+        if (vaults[vaultId] != address(0)) revert AlreadyHasRegistered();
+
+        vaults[vaultId] = msg.sender;
+    }
+
+    /**
      * @dev Creates a new subscription offering
      * @param vaultId Unique identifier for the knowledge vault
      * @param price Cost to mint an access NFT (can be 0 for free NFTs)
@@ -86,6 +103,7 @@ contract KnowledgeMarket is Initializable, KnowledgeAccessNFT, ReentrancyGuard {
         if (bytes(vaultId).length == 0) revert EmptyVaultId();
         if (splitFee > 10000) revert InvalidFee();
         if (coOwner == msg.sender) revert SameCoOwner();
+        if (vaults[vaultId] != msg.sender) revert NotVaultOwner();
 
         // Use the default image if none provided
         string memory finalImageURL = bytes(imageURL).length == 0 ? DEFAULT_IMAGE_URL : imageURL;
