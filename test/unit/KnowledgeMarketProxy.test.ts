@@ -114,6 +114,9 @@ describe("KnowledgeMarketProxy", function () {
     const coOwnerAddress = coOwner.address;
     const coOwnerShare = ethers.toBigInt(500);
     
+    // Register a vault
+    await knowledgeMarketAtProxy.registerVault(vaultId);
+    
     // Call setSubscription via the proxy
     await knowledgeMarketAtProxy.setSubscription(vaultId, price, expirationDuration, imageURL, coOwnerAddress, coOwnerShare);
     
@@ -149,6 +152,9 @@ describe("KnowledgeMarketProxy", function () {
     const imageURL = "https://example.com/image.jpg";
     const coOwnerAddress = coOwner.address;
     const coOwnerShare = ethers.toBigInt(500); // 50% share
+    // Register a vault
+    await knowledgeMarketAtProxy.registerVault(vaultId);
+    
     // Call setSubscription via the proxy
     await knowledgeMarketAtProxy.setSubscription(vaultId, price, expirationDuration, imageURL, coOwnerAddress, coOwnerShare);
     // Verify the subscription was set by reading from the proxy
