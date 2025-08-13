@@ -55,4 +55,7 @@ interface IKnowledgeAccessControl {
     /// @notice The author's minting fee has not been met by the consumer
     /// @param expectedPrice A message indicating the minting fee is not met
     error InsufficientFunds(uint256 expectedPrice);
+
+    // @notice Transfer is locked during the lock period
+    error TransferLocked();
 }
