@@ -6,7 +6,7 @@ import {ERC721Enumerable} from "@openzeppelin/contracts/token/ERC721/extensions/
 import {IKnowledgeAccessControl} from "./IKnowledgeAccessControl.sol";
 
 abstract contract KnowledgeAccessNFT is IKnowledgeAccessControl, ERC721, ERC721Enumerable {
-
+    uint256 public constant LOCK_PERIOD = 1 days;
     struct Settings {
         string resourceId;
         uint256 price;
@@ -21,6 +21,7 @@ abstract contract KnowledgeAccessNFT is IKnowledgeAccessControl, ERC721, ERC721E
         bytes32 hash;
         string resourceId;
         uint32 expirationTime;
+        uint256 mintTimestamp;
     }
 
     mapping(uint256 => Metadata) public nftData;
@@ -138,6 +139,9 @@ abstract contract KnowledgeAccessNFT is IKnowledgeAccessControl, ERC721, ERC721E
         uint256 tokenId,
         address auth
     ) internal virtual override(ERC721, ERC721Enumerable) returns (address) {
+        if (to != address(0) && nftData[tokenId].mintTimestamp + LOCK_PERIOD > block.timestamp) {
+            revert TransferLocked();
+        }
         return super._update(to, tokenId, auth);
     }
 
