@@ -355,6 +355,36 @@ describe("KnowledgeMarket", function () {
       );
     });
 
+    it("Should allow minting with different users", async function () {
+      //fist user
+      await knowledgeMarket.connect(user).mint(
+        vaultOwner.address,
+        VAULT_ID,
+        user.address,
+        { value: PRICE }
+      );
+
+      const tokenId1 = await knowledgeMarket.totalSupply() - 1n;
+      const deal1 = await knowledgeMarket.dealInfo(tokenId1);
+      expect(deal1.vaultOwner).to.equal(vaultOwner.address);
+      expect(deal1.imageURL).to.equal(IMAGE_URL);
+      expect(deal1.price).to.equal(PRICE);
+
+      //secound user
+      await knowledgeMarket.connect(anotherUser).mint(
+        vaultOwner.address,
+        VAULT_ID,
+        anotherUser.address,
+        { value: PRICE }
+      );
+
+      const tokenId2 = await knowledgeMarket.totalSupply() - 1n;
+      const deal2 = await knowledgeMarket.dealInfo(tokenId2);
+      expect(deal2.vaultOwner).to.equal(vaultOwner.address);
+      expect(deal2.imageURL).to.equal(IMAGE_URL);
+      expect(deal2.price).to.equal(PRICE);
+    });
+
     it("Should allow minting with correct payment", async function () {
       await knowledgeMarket.connect(user).mint(
         vaultOwner.address,
@@ -495,6 +525,43 @@ describe("KnowledgeMarket", function () {
           { value: PRICE }
         )
       ).to.be.revertedWithCustomError(knowledgeMarket, "AlreadyHasActiveAccess");
+    });
+
+    it("Should block transfer if within LOCK_PERIOD after mint", async function () {
+      const LOCK_PERIOD = 86400; // 1 day in seconds
+      // Set up a subscription first
+      await knowledgeMarket.connect(user).mint(
+        vaultOwner.address,
+        VAULT_ID,
+        user.address,
+        { value: PRICE }
+      );
+
+      const tokenId = await knowledgeMarket.totalSupply() - 1n;
+      const deal = await knowledgeMarket.dealInfo(tokenId);
+      expect(deal.vaultOwner).to.equal(vaultOwner.address);
+      expect(deal.imageURL).to.equal(IMAGE_URL);
+      expect(deal.price).to.equal(PRICE);
+
+      // Try to transfer the NFT immediately
+      await expect(
+        knowledgeMarket.connect(user).transferFrom(user.address, coOwner.address, tokenId)
+      ).to.be.revertedWithCustomError(knowledgeMarket,"TransferLocked");
+
+      // Try to transfer the NFT after almost 1 day
+      await ethers.provider.send("evm_increaseTime", [LOCK_PERIOD - 5]);
+      await ethers.provider.send("evm_mine", []);
+
+      await expect(
+        knowledgeMarket.connect(user).transferFrom(user.address, coOwner.address, tokenId)
+      ).to.be.revertedWithCustomError(knowledgeMarket,"TransferLocked");
+
+      // Try to transfer the NFT after 1 day
+      await ethers.provider.send("evm_increaseTime", [LOCK_PERIOD - 5]);
+      await ethers.provider.send("evm_mine", []);
+
+      // Now it should allow
+      await knowledgeMarket.connect(user).transferFrom(user.address, coOwner.address, tokenId);
     });
   });
 
