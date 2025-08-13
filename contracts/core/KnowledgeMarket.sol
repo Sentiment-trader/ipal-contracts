@@ -229,18 +229,6 @@ contract KnowledgeMarket is Initializable, KnowledgeAccessNFT, ReentrancyGuard {
         if (msg.value < set.price) revert InsufficientFunds(set.price);
 
         uint256 tokenId = nextTokenId++;
-        nftData[tokenId] = Metadata(
-            hash,
-            set.resourceId,
-            set.expirationDuration + uint32(block.timestamp)
-        );
-
-        string memory imageURL = subscriptionImageURLs[vaultOwner][vaultId];
-        if (bytes(imageURL).length == 0) {
-            imageURL = DEFAULT_IMAGE_URL;
-        }
-
-        dealInfo[tokenId] = Deal(vaultOwner, imageURL, set.price);
 
         _processPayment(vaultOwner, set.price, set);
 
@@ -251,6 +239,20 @@ contract KnowledgeMarket is Initializable, KnowledgeAccessNFT, ReentrancyGuard {
         }
         // Mint the NFT
         _safeMint(to, tokenId);
+
+        nftData[tokenId] = Metadata(
+            hash,
+            set.resourceId,
+            set.expirationDuration + uint32(block.timestamp),
+            block.timestamp
+        );
+
+        string memory imageURL = subscriptionImageURLs[vaultOwner][vaultId];
+        if (bytes(imageURL).length == 0) {
+            imageURL = DEFAULT_IMAGE_URL;
+        }
+
+        dealInfo[tokenId] = Deal(vaultOwner, imageURL, set.price);
 
         emit AccessGranted(vaultOwner, vaultId, to, tokenId, set.price);
     }
