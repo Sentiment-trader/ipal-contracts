@@ -309,9 +309,9 @@ contract KnowledgeMarket is Initializable, KnowledgeAccessNFT, ReentrancyGuardUp
         uint256 remaining = amount;
         uint256 feeAmount = (amount * platformFeePercent) / 10000;
         if (feeAmount > 0) {
+            remaining -= feeAmount;
             (bool sentFee, ) = platformTreasury.call{value: feeAmount}("");
             require(sentFee, "Failed to send platform fee");
-            remaining -= feeAmount;
         }
         if (set.coOwner != address(0) && set.splitFee > 0) {
             uint256 coPart = (remaining * set.splitFee) / 10000;
