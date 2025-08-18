@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.24;
 
-import {ERC721} from "@openzeppelin/contracts/token/ERC721/ERC721.sol";
-import {ERC721Enumerable} from "@openzeppelin/contracts/token/ERC721/extensions/ERC721Enumerable.sol";
+import {ERC721Upgradeable} from "@openzeppelin/contracts-upgradeable/token/ERC721/ERC721Upgradeable.sol";
+import {ERC721EnumerableUpgradeable} from "@openzeppelin/contracts-upgradeable/token/ERC721/extensions/ERC721EnumerableUpgradeable.sol";
 import {IKnowledgeAccessControl} from "./IKnowledgeAccessControl.sol";
 
-abstract contract KnowledgeAccessNFT is IKnowledgeAccessControl, ERC721, ERC721Enumerable {
+abstract contract KnowledgeAccessNFT is IKnowledgeAccessControl, ERC721Upgradeable, ERC721EnumerableUpgradeable {
     uint256 public constant LOCK_PERIOD = 1 days;
     struct Settings {
         string resourceId;
@@ -25,11 +25,6 @@ abstract contract KnowledgeAccessNFT is IKnowledgeAccessControl, ERC721, ERC721E
     }
 
     mapping(uint256 => Metadata) public nftData;
-
-    constructor(
-        string memory name_,
-        string memory symbol_
-    ) ERC721(name_, symbol_) {}
 
     function _hash(
         address author,
@@ -138,7 +133,7 @@ abstract contract KnowledgeAccessNFT is IKnowledgeAccessControl, ERC721, ERC721E
         address to,
         uint256 tokenId,
         address auth
-    ) internal virtual override(ERC721, ERC721Enumerable) returns (address) {
+    ) internal virtual override(ERC721Upgradeable, ERC721EnumerableUpgradeable) returns (address) {
         if (to != address(0) && nftData[tokenId].mintTimestamp + LOCK_PERIOD > block.timestamp) {
             revert TransferLocked();
         }
@@ -148,14 +143,16 @@ abstract contract KnowledgeAccessNFT is IKnowledgeAccessControl, ERC721, ERC721E
     function _increaseBalance(
         address account,
         uint128 value
-    ) internal virtual override(ERC721, ERC721Enumerable) {
+    ) internal virtual override(ERC721Upgradeable, ERC721EnumerableUpgradeable) {
         super._increaseBalance(account, value);
     }
 
     /**
      * @dev See {IERC165-supportsInterface}.
      */
-    function supportsInterface(bytes4 interfaceId) public view virtual override(ERC721, ERC721Enumerable) returns (bool) {
+    function supportsInterface(
+        bytes4 interfaceId
+    ) public view virtual override(ERC721Upgradeable, ERC721EnumerableUpgradeable) returns (bool) {
         return
             interfaceId == type(IKnowledgeAccessControl).interfaceId ||
             super.supportsInterface(interfaceId);
