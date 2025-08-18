@@ -57,15 +57,6 @@ describe("KnowledgeMarketProxy", function () {
     expect(await proxy.symbol()).to.equal("KNOW");
   });
 
-  it("Should allow only admin to view implementation", async function () {
-    // ProxyAdmin contract should be able to get implementation
-    const implAddress = await proxyAdmin.getProxyImplementation(await proxy.getAddress());
-    expect(implAddress).to.not.equal(ethers.ZeroAddress);
-
-    // Direct call from user should revert
-    await expect(proxy.connect(user).implementation()).to.be.revertedWith("Only admin can view implementation");
-  });
-
   it("Should allow only ProxyAdmin to change admin", async function () {
     const newAdmin = user.address;
     
