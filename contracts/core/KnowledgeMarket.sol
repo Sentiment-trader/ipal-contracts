@@ -2,15 +2,15 @@
 pragma solidity ^0.8.24;
 import {KnowledgeAccessNFT} from "./KnowledgeAccessNFT.sol";
 import {Strings} from "@openzeppelin/contracts/utils/Strings.sol";
-import {ReentrancyGuard} from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
-import {Initializable} from "@openzeppelin/contracts/proxy/utils/Initializable.sol";
+import {ReentrancyGuardUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardUpgradeable.sol";
+import {Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import {Base64} from "@openzeppelin/contracts/utils/Base64.sol";
 
 /**
  * @title KnowledgeMarket
  * @dev Contract for managing knowledge subscriptions using KnowledgeAccessNFT token standard
  */
-contract KnowledgeMarket is Initializable, KnowledgeAccessNFT, ReentrancyGuard {
+contract KnowledgeMarket is Initializable, KnowledgeAccessNFT, ReentrancyGuardUpgradeable {
     // Default image URL used when no image is provided
     string private constant DEFAULT_IMAGE_URL = "https://arweave.net/9u0cgTmkSM25PfQpGZ-JzspjOMf4uGFjkvOfKjgQnVY";
 
@@ -61,9 +61,15 @@ contract KnowledgeMarket is Initializable, KnowledgeAccessNFT, ReentrancyGuard {
     event SubscriptionDeleted(address indexed vaultOwner, string vaultId);
     event AccessGranted(address indexed vaultOwner, string vaultId, address indexed customer, uint256 tokenId, uint256 price);
 
-    constructor() KnowledgeAccessNFT("Knowledge Market Access", "KMA") {}
+    constructor() {
+        _disableInitializers();
+    }
 
     function initialize(address payable _treasury, uint32 _fee) public initializer {
+        __ERC721_init("Knowledge Market Access", "KMA");
+        __ERC721Enumerable_init();
+        __ReentrancyGuard_init();
+
         if (_treasury == address(0)) revert ZeroAddress();
         if (_fee > 10000) revert InvalidFee();
 
