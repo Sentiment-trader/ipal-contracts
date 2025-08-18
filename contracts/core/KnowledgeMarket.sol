@@ -88,14 +88,14 @@ contract KnowledgeMarket is Initializable, KnowledgeAccessNFT, ReentrancyGuardUp
         vaults[vaultId] = msg.sender;
     }
 
-    /**
-     * @dev Creates a new subscription offering
+   /**
+     * @dev Sets the subscription details for a specific vault
      * @param vaultId Unique identifier for the knowledge vault
-     * @param price Cost to mint an access NFT (can be 0 for free NFTs)
-     * @param expirationDuration How long access lasts (in seconds)
-     * @param imageURL URL for the image representing this subscription
-     * @param coOwner Address of the co-owner who shares revenue (can be 0x0 for no co-owner)
-     * @param splitFee Percentage of revenue to share with the co-owner (0-10000, where 10000 = 100%)
+     * @param price Subscription price
+     * @param expirationDuration Duration until the subscription expires
+     * @param imageURL URL for the subscription image
+     * @param coOwner Address of the co-owner (if any)
+     * @param splitFee Percentage of the fee split with the co-owner (if any)
      */
     function setSubscription(
         string calldata vaultId,
@@ -105,41 +105,63 @@ contract KnowledgeMarket is Initializable, KnowledgeAccessNFT, ReentrancyGuardUp
         address coOwner,
         uint32 splitFee
     ) public nonReentrant {
-        // Input validation
+        if (hasSubscription[msg.sender][vaultId]) {
+            _updateSubscription(vaultId, price, expirationDuration, imageURL, coOwner, splitFee);
+        } else {
+            _createSubscription(vaultId, price, expirationDuration, imageURL, coOwner, splitFee);
+        }
+    }
+
+    function _createSubscription(
+        string calldata vaultId,
+        uint256 price,
+        uint32 expirationDuration,
+        string calldata imageURL,
+        address coOwner,
+        uint32 splitFee
+    ) internal {
         if (bytes(vaultId).length == 0) revert EmptyVaultId();
         if (splitFee > 10000) revert InvalidFee();
         if (coOwner == msg.sender) revert SameCoOwner();
         if (vaults[vaultId] != msg.sender) revert NotVaultOwner();
 
-        // Use the default image if none provided
         string memory finalImageURL = bytes(imageURL).length == 0 ? DEFAULT_IMAGE_URL : imageURL;
 
-        if (hasSubscription[msg.sender][vaultId]) {
-            Subscription[] storage subscriptions = vaultOwnerSubscriptions[msg.sender];
-            for (uint256 i = 0; i < subscriptions.length; i++) {
-                if (keccak256(abi.encodePacked(subscriptions[i].vaultId)) 
-                        == keccak256(abi.encodePacked(vaultId))) {
-                    subscriptions[i].imageURL = finalImageURL;
-                    break;
-                }
-            }
-            subscriptionImageURLs[msg.sender][vaultId] = finalImageURL;
-            
-            setAccess(vaultId, price, expirationDuration, coOwner, splitFee);
-            
-            emit SubscriptionUpdated(msg.sender, vaultId, price, expirationDuration, coOwner, splitFee);
-
-        } else {
-
         hasSubscription[msg.sender][vaultId] = true;
-
         vaultOwnerSubscriptions[msg.sender].push(Subscription(vaultId, finalImageURL));
         subscriptionImageURLs[msg.sender][vaultId] = finalImageURL;
 
         setAccess(vaultId, price, expirationDuration, coOwner, splitFee);
 
         emit SubscriptionCreated(msg.sender, vaultId, price, expirationDuration, coOwner, splitFee);
+    }
+
+    function _updateSubscription(
+        string calldata vaultId,
+        uint256 price,
+        uint32 expirationDuration,
+        string calldata imageURL,
+        address coOwner,
+        uint32 splitFee
+    ) internal {
+        if (splitFee > 10000) revert InvalidFee();
+        if (coOwner == msg.sender) revert SameCoOwner();
+        if (vaults[vaultId] != msg.sender) revert NotVaultOwner();
+
+        string memory finalImageURL = bytes(imageURL).length == 0 ? DEFAULT_IMAGE_URL : imageURL;
+
+        Subscription[] storage subscriptions = vaultOwnerSubscriptions[msg.sender];
+        for (uint256 i = 0; i < subscriptions.length; i++) {
+            if (keccak256(abi.encodePacked(subscriptions[i].vaultId)) == keccak256(abi.encodePacked(vaultId))) {
+                subscriptions[i].imageURL = finalImageURL;
+                break;
+            }
         }
+        subscriptionImageURLs[msg.sender][vaultId] = finalImageURL;
+
+        setAccess(vaultId, price, expirationDuration, coOwner, splitFee);
+
+        emit SubscriptionUpdated(msg.sender, vaultId, price, expirationDuration, coOwner, splitFee);
     }
 
     /**
