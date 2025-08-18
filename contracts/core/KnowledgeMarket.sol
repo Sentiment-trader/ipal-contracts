@@ -401,4 +401,7 @@ contract KnowledgeMarket is Initializable, KnowledgeAccessNFT, ReentrancyGuardUp
         string memory encoded = Base64.encode(bytes(json));
         return string(abi.encodePacked("data:application/json;base64,", encoded));
     }
+
+    // Reserved storage space to allow for layout changes in the future.
+    uint256[50] private __gap;
 } 
