@@ -51,7 +51,6 @@ contract KnowledgeMarketProxy {
      * @dev Returns the current implementation address
      */
     function implementation() external view returns (address) {
-        require(msg.sender == _getAdmin(), "Only admin can view implementation");
         return _getImplementation();
     }
     
