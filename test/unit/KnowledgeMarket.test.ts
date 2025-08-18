@@ -707,4 +707,27 @@ describe("KnowledgeMarket", function () {
       expect(subscriptions.length).to.equal(2);
     });
   });
+
+  describe("Platform Fee", function() {
+    it("Should update platform fee", async function() {
+      const newFee = 1500; // 15%
+      await knowledgeMarket.connect(owner).updatePlatformFee(newFee);
+      const fee = await knowledgeMarket.platformFeePercent();
+      expect(fee).to.equal(newFee);
+    });
+
+    it("Should revert if non-owner tries to update fee", async function() {
+      const newFee = 1500; // 15%
+      await expect(
+        knowledgeMarket.connect(user).updatePlatformFee(newFee)
+      ).to.be.revertedWithCustomError(knowledgeMarket, "OwnableUnauthorizedAccount");
+    });
+
+    it("Should revert if fee is out of bounds", async function() {
+      const newFee = 20000; // 200%
+      await expect(
+        knowledgeMarket.connect(owner).updatePlatformFee(newFee)
+      ).to.be.revertedWithCustomError(knowledgeMarket, "InvalidFee");
+    });
+  });
 }); 
