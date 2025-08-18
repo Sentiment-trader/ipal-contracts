@@ -3,6 +3,7 @@ pragma solidity ^0.8.24;
 import {KnowledgeAccessNFT} from "./KnowledgeAccessNFT.sol";
 import {Strings} from "@openzeppelin/contracts/utils/Strings.sol";
 import {ReentrancyGuardUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardUpgradeable.sol";
+import {OwnableUpgradeable} from "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 import {Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import {Base64} from "@openzeppelin/contracts/utils/Base64.sol";
 
@@ -10,7 +11,7 @@ import {Base64} from "@openzeppelin/contracts/utils/Base64.sol";
  * @title KnowledgeMarket
  * @dev Contract for managing knowledge subscriptions using KnowledgeAccessNFT token standard
  */
-contract KnowledgeMarket is Initializable, KnowledgeAccessNFT, ReentrancyGuardUpgradeable {
+contract KnowledgeMarket is Initializable, KnowledgeAccessNFT, ReentrancyGuardUpgradeable, OwnableUpgradeable {
     // Default image URL used when no image is provided
     string private constant DEFAULT_IMAGE_URL = "https://arweave.net/9u0cgTmkSM25PfQpGZ-JzspjOMf4uGFjkvOfKjgQnVY";
 
@@ -60,6 +61,7 @@ contract KnowledgeMarket is Initializable, KnowledgeAccessNFT, ReentrancyGuardUp
     event SubscriptionUpdated(address indexed vaultOwner, string vaultId, uint256 price, uint32 expirationDuration, address coOwner, uint32 splitFee);
     event SubscriptionDeleted(address indexed vaultOwner, string vaultId);
     event AccessGranted(address indexed vaultOwner, string vaultId, address indexed customer, uint256 tokenId, uint256 price);
+    event PlatformFeeUpdated(uint32 _oldFee, uint32 _newFee);
 
     constructor() {
         _disableInitializers();
@@ -69,12 +71,26 @@ contract KnowledgeMarket is Initializable, KnowledgeAccessNFT, ReentrancyGuardUp
         __ERC721_init("Knowledge Market Access", "KMA");
         __ERC721Enumerable_init();
         __ReentrancyGuard_init();
+        __Ownable_init(msg.sender);
 
         if (_treasury == address(0)) revert ZeroAddress();
         if (_fee > 10000) revert InvalidFee();
 
         platformTreasury = _treasury;
         platformFeePercent = _fee;
+    }
+
+    /**
+     * @dev Updates the platform fee percentage
+     * @param _newFee New platform fee percentage (0-10000)
+     */
+    function updatePlatformFee(uint32 _newFee) external onlyOwner {
+        if (_newFee > 10000) revert InvalidFee();
+
+        uint32 oldFee = platformFeePercent;
+        platformFeePercent = _newFee;
+
+        emit PlatformFeeUpdated(oldFee, _newFee);
     }
 
     /**
