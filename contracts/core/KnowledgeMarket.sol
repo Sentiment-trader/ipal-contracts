@@ -3,7 +3,6 @@ pragma solidity ^0.8.24;
 import {KnowledgeAccessNFT} from "./KnowledgeAccessNFT.sol";
 import {Strings} from "@openzeppelin/contracts/utils/Strings.sol";
 import {ReentrancyGuardUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardUpgradeable.sol";
-import {OwnableUpgradeable} from "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 import {Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import {Base64} from "@openzeppelin/contracts/utils/Base64.sol";
 
@@ -11,9 +10,10 @@ import {Base64} from "@openzeppelin/contracts/utils/Base64.sol";
  * @title KnowledgeMarket
  * @dev Contract for managing knowledge subscriptions using KnowledgeAccessNFT token standard
  */
-contract KnowledgeMarket is Initializable, KnowledgeAccessNFT, ReentrancyGuardUpgradeable, OwnableUpgradeable {
+contract KnowledgeMarket is Initializable, KnowledgeAccessNFT, ReentrancyGuardUpgradeable {
     // Default image URL used when no image is provided
     string private constant DEFAULT_IMAGE_URL = "https://arweave.net/9u0cgTmkSM25PfQpGZ-JzspjOMf4uGFjkvOfKjgQnVY";
+    address private _owner;
 
     struct Subscription {
         string vaultId;
@@ -44,6 +44,8 @@ contract KnowledgeMarket is Initializable, KnowledgeAccessNFT, ReentrancyGuardUp
     error AlreadyHasRegistered();
     // Not the vault owner trying to set subscription
     error NotVaultOwner();
+    // Not the contract owner trying to call a restricted function
+    error OwnableUnauthorizedAccount();
 
     // Maps vault IDs to their owners
     mapping(string => address) public vaults;
@@ -63,21 +65,24 @@ contract KnowledgeMarket is Initializable, KnowledgeAccessNFT, ReentrancyGuardUp
     event AccessGranted(address indexed vaultOwner, string vaultId, address indexed customer, uint256 tokenId, uint256 price);
     event PlatformFeeUpdated(uint32 _oldFee, uint32 _newFee);
 
-    constructor() {
+    constructor() KnowledgeAccessNFT("Knowledge Market Access", "KMA") {
         _disableInitializers();
+        _owner = msg.sender;
     }
 
     function initialize(address payable _treasury, uint32 _fee) public initializer {
-        __ERC721_init("Knowledge Market Access", "KMA");
-        __ERC721Enumerable_init();
         __ReentrancyGuard_init();
-        __Ownable_init(msg.sender);
 
         if (_treasury == address(0)) revert ZeroAddress();
         if (_fee > 10000) revert InvalidFee();
 
         platformTreasury = _treasury;
         platformFeePercent = _fee;
+    }
+
+    modifier onlyOwner() {
+        if (_owner != msg.sender) revert OwnableUnauthorizedAccount();
+        _;
     }
 
     /**
