@@ -1,7 +1,7 @@
 ![Ipal logo](https://i-p.rmcdn.net/65fd9abf114acc00326b972c/4693032/image-dbef989c-7504-46cf-97e1-410a19916f20.png?e=webp&nll=true)
 
 # IPAL: Decentralized Knowledge Market
-## White Paper v1.0
+## White Paper v1.1
 
 ## Abstract
 
@@ -33,7 +33,7 @@ The IPAL ecosystem consists of two main components:
 
 ## Technical Architecture
 
-IPAL's architecture is built on Ethereum smart contracts implementing the ERC4908 standard, which extends ERC721 to include time-limited access controls. This architecture enables secure, transparent, and efficient knowledge exchange without intermediaries.
+IPAL's architecture is built on Ethereum smart contracts that extend the ERC721 standard to support time-limited access controls. This design enables secure, transparent, and efficient knowledge exchange without intermediaries.
 
 ```mermaid
 ---
@@ -48,8 +48,8 @@ graph TD
     
     subgraph "Smart Contract Layer"
         KM
-        ERC4908[ERC4908 Implementation]
-        KM -->|Extends| ERC4908
+        KnowledgeAccessNFT[KnowledgeAccessNFT Implementation]
+        KM -->|Extends| KnowledgeAccessNFT
         P[Proxy] -->|Delegates to| KM
     end
     
@@ -63,17 +63,20 @@ graph TD
 
 ## NFT-Gated Access System
 
-The core of IPAL's functionality is the NFT-gated access system, enabling knowledge creators to sell access to their content through time-limited NFTs. When a consumer purchases access, they receive an NFT representing their access rights to specific knowledge vaults.
+The core of IPAL's functionality is the NFT-gated access system, enabling knowledge creators to sell access to their content through time-limited NFTs. When a consumer purchases access, they receive an NFT representing their access rights to specific knowledge vaults. The payment is automatically split by the smart contract: the vault owner receives the main share, a co-owner (if defined) receives a portion, and a small platform fee is collected. This ensures transparent and automated revenue distribution without intermediaries.
 
 ### Vault Owner Revenue Flow
 
 ```mermaid
 ---
-title: "Vault Owner Revenue Flow"
+title: "Vault Revenue Distribution Flow"
 ---
 graph TD
     Visitor -->|Sends Payment| KnowledgeMarket.sol
-    KnowledgeMarket.sol -->|Transfers Payment| VaultOwner
+    
+    KnowledgeMarket.sol -->|Distributes Payment| VaultOwner
+    KnowledgeMarket.sol -->|Distributes Payment| CoOwner
+    KnowledgeMarket.sol -->|Collects Fee| Platform
     KnowledgeMarket.sol -->|Stores Deal Info| DealInfo
 
     subgraph "Knowledge Market Contract"
@@ -117,10 +120,11 @@ The `KnowledgeMarket` contract has been enhanced to support:
 
 ### Subscription Management
 Vault owners can:
-- Create subscription offerings with custom pricing and duration
-- Set free (zero price) access when appropriate
-- Update or remove subscription offerings
-- Customize visual representation of their content
+- Register a vault on-chain, establishing ownership and metadata.
+- Create subscription offerings (pricing, duration, co-owner share) linked to their registered vault.
+- Offer free (zero-price) access when appropriate.
+- Update or remove subscription offerings at any time.
+- Customize the visual representation of their content.
 
 ### Access Control
 The contract provides:
@@ -218,12 +222,12 @@ The planned token distribution ensures a balanced ecosystem that rewards early c
 
 ---
 
-## Roadmap
+## Roadmap (Outdated)
 
 IPAL's development roadmap includes:
 
 1. **Q2 2023 (Completed)**
-   - ERC4908 standard implementation
+   - KnowledgeAccessNFT standard implementation
    - KnowledgeMarket contract development
 
 2. **Q3 2023 (Completed)**
@@ -257,7 +261,7 @@ With the fully implemented KnowledgeMarket contract and the upcoming $IPAL token
 
 ---
 
-## Contract Deployments
+## Contract Deployments (Outdated)
 
 ### Base Mainnet
 - KnowledgeMarket Proxy: [0x848FedB4DD81E7A009B0ED4a7C2900Ea21721159](https://basescan.org/address/0x848FedB4DD81E7A009B0ED4a7C2900Ea21721159)
