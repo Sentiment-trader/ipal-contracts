@@ -31,6 +31,8 @@ describe("KnowledgeMarket", function () {
     knowledgeMarket = await KnowledgeMarket.deploy();
     await knowledgeMarket.waitForDeployment();
 
+    // Note: The smart contract isn't initialized by default, for testing you must comment the line  "_disableInitializers()" in the constructor (KnowledgeMarket.sol)
+
     const plataformFee = 1200; // 12% platform fee
     const treasury = owner.address; // Set the treasury address to the owner's address
     await knowledgeMarket.initialize(treasury, plataformFee);
