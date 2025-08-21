@@ -222,7 +222,7 @@ The planned token distribution ensures a balanced ecosystem that rewards early c
 
 ---
 
-## Roadmap (Outdated)
+## Roadmap
 
 IPAL's development roadmap includes:
 
