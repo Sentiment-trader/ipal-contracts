@@ -243,12 +243,12 @@ IPAL's development roadmap includes:
    - Initial creator onboarding
    - Governance model implementation
 
-9. **Q3 2025 (Current)**
+5. **Q3 2025 (Current)**
    - Smart Contract Audit
    - e2e Testing, prepare for Mainnet launch
    - KnowledgeMarket contract deployment on Base chain
 
-10. **Q4 2025 (Planned)**
+6. **Q4 2025 (Planned)**
    - Launch first joint venture and TGE
    - Mainnet launch
 
