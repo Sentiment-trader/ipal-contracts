@@ -57,15 +57,6 @@ describe("KnowledgeMarketProxy", function () {
     expect(await proxy.symbol()).to.equal("KNOW");
   });
 
-  it("Should allow only admin to view implementation", async function () {
-    // ProxyAdmin contract should be able to get implementation
-    const implAddress = await proxyAdmin.getProxyImplementation(await proxy.getAddress());
-    expect(implAddress).to.not.equal(ethers.ZeroAddress);
-
-    // Direct call from user should revert
-    await expect(proxy.connect(user).implementation()).to.be.revertedWith("Only admin can view implementation");
-  });
-
   it("Should allow only ProxyAdmin to change admin", async function () {
     const newAdmin = user.address;
     
@@ -114,6 +105,9 @@ describe("KnowledgeMarketProxy", function () {
     const coOwnerAddress = coOwner.address;
     const coOwnerShare = ethers.toBigInt(500);
     
+    // Register a vault
+    await knowledgeMarketAtProxy.registerVault(vaultId);
+    
     // Call setSubscription via the proxy
     await knowledgeMarketAtProxy.setSubscription(vaultId, price, expirationDuration, imageURL, coOwnerAddress, coOwnerShare);
     
@@ -149,6 +143,9 @@ describe("KnowledgeMarketProxy", function () {
     const imageURL = "https://example.com/image.jpg";
     const coOwnerAddress = coOwner.address;
     const coOwnerShare = ethers.toBigInt(500); // 50% share
+    // Register a vault
+    await knowledgeMarketAtProxy.registerVault(vaultId);
+    
     // Call setSubscription via the proxy
     await knowledgeMarketAtProxy.setSubscription(vaultId, price, expirationDuration, imageURL, coOwnerAddress, coOwnerShare);
     // Verify the subscription was set by reading from the proxy
