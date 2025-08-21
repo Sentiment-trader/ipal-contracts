@@ -226,30 +226,31 @@ The planned token distribution ensures a balanced ecosystem that rewards early c
 
 IPAL's development roadmap includes:
 
-1. **Q2 2023 (Completed)**
+1. **Q3 2024 (Completed)**
    - KnowledgeAccessNFT standard implementation
    - KnowledgeMarket contract development
 
-2. **Q3 2023 (Completed)**
-   - Smart contract security audits
-   - KnowledgeMarket deployment
-
-3. **Q4 2023 (Completed)**
+2. **Q4 2024 (Completed)**
    - Frontend application development
-   - Initial creator onboarding
+   - Smart contract security assessment
 
-4. **Q1 2024 (Completed)**
+3. **Q1 2025 (Completed)**
    - Platform optimization
    - NFT marketplace integration
    - Implementation of proxy pattern
 
-5. **Q2 2024 (Current)**
-   - $IPAL token development
+4. **Q2 2025 (Completed)**
+   - Initial creator onboarding
    - Governance model implementation
 
-6. **Q3 2024 (Planned)**
-   - Token launch
-   - DAO establishment
+9. **Q3 2025 (Current)**
+   - Smart Contract Audit
+   - e2e Testing, prepare for Mainnet launch
+   - KnowledgeMarket contract deployment on Base chain
+
+10. **Q4 2025 (Planned)**
+   - Launch first joint venture and TGE
+   - Mainnet launch
 
 ---
 
@@ -264,12 +265,12 @@ With the fully implemented KnowledgeMarket contract and the upcoming $IPAL token
 ## Contract Deployments (Outdated)
 
 ### Base Mainnet
-- KnowledgeMarket Proxy: [0x848FedB4DD81E7A009B0ED4a7C2900Ea21721159](https://basescan.org/address/0x848FedB4DD81E7A009B0ED4a7C2900Ea21721159)
+- KnowledgeMarket Proxy: [ ... ]
 
 ### Base Sepolia (Testnet)
-- KnowledgeMarket Proxy: [0x05889371937b66D9588C5C75be56CE0707bdFcf2](https://sepolia.basescan.org/address/0x05889371937b66D9588C5C75be56CE0707bdFcf2)
-- KnowledgeMarket Implementation: [0x3C2D8565971d9B25295E0C0F2adDd03418fa0cB8](https://sepolia.basescan.org/address/0x3C2D8565971d9B25295E0C0F2adDd03418fa0cB8)
-- ProxyAdmin: [0xF71B73570eb55454d86952d95de72021348fE248](https://sepolia.basescan.org/address/0xF71B73570eb55454d86952d95de72021348fE248)
+- KnowledgeMarket Proxy: [0xd6D8BdB1e53571A46F824E2a2B5D13580B1abf9f](https://sepolia.basescan.org/address/0xd6D8BdB1e53571A46F824E2a2B5D13580B1abf9f)
+- KnowledgeMarket Implementation: [0xFc1235cF3f901907cFC71CdC0762630561F23B93](https://sepolia.basescan.org/address/0xFc1235cF3f901907cFC71CdC0762630561F23B93)
+- ProxyAdmin: [0x25677f7Ae0363a430D257D00B8720Bf3B74b6259](https://sepolia.basescan.org/address/0x25677f7Ae0363a430D257D00B8720Bf3B74b6259)
 
 ---
 
