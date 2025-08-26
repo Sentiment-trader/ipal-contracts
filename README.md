@@ -262,7 +262,7 @@ With the fully implemented KnowledgeMarket contract and the upcoming $IPAL token
 
 ---
 
-## Contract Deployments (Outdated)
+## Contract Deployments 
 
 ### Base Mainnet
 - KnowledgeMarket Proxy: [ ... ]
