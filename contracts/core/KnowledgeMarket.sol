@@ -1,18 +1,19 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.24;
-
-import {ERC4908} from "erc-4908/contracts/ERC4908.sol";
+import {KnowledgeAccessNFT} from "./KnowledgeAccessNFT.sol";
 import {Strings} from "@openzeppelin/contracts/utils/Strings.sol";
-import {ReentrancyGuard} from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
-import {Initializable} from "@openzeppelin/contracts/proxy/utils/Initializable.sol";
+import {ReentrancyGuardUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardUpgradeable.sol";
+import {Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
+import {Base64} from "@openzeppelin/contracts/utils/Base64.sol";
 
 /**
  * @title KnowledgeMarket
- * @dev Contract for managing knowledge subscriptions using ERC4908 token standard
+ * @dev Contract for managing knowledge subscriptions using KnowledgeAccessNFT token standard
  */
-contract KnowledgeMarket is Initializable, ERC4908, ReentrancyGuard {
+contract KnowledgeMarket is Initializable, KnowledgeAccessNFT, ReentrancyGuardUpgradeable {
     // Default image URL used when no image is provided
     string private constant DEFAULT_IMAGE_URL = "https://arweave.net/9u0cgTmkSM25PfQpGZ-JzspjOMf4uGFjkvOfKjgQnVY";
+    address private _owner;
 
     struct Subscription {
         string vaultId;
@@ -33,28 +34,45 @@ contract KnowledgeMarket is Initializable, ERC4908, ReentrancyGuard {
     error EmptyVaultId();
     // Zero address cannot be used for vault owner or recipient
     error ZeroAddress();
-    // Duration cannot be zero
-    error ZeroDuration();
     // Split fee must be between 0 and 10000 (inclusive)
     error SameCoOwner();
     // Fee must be between 0 and 10000 (inclusive)
     error InvalidFee();
+    // Has access already granted to this vault
+    error AlreadyHasActiveAccess();
+    // Has already registered a vault with this ID
+    error AlreadyHasRegistered();
+    // Not the vault owner trying to set subscription
+    error NotVaultOwner();
+    // Not the contract owner trying to call a restricted function
+    error OwnableUnauthorizedAccount();
 
+    // Maps vault IDs to their owners
+    mapping(string => address) public vaults;
     // Maps vault owner addresses to their subscription offerings
     mapping(address => Subscription[]) public vaultOwnerSubscriptions;
     // Maps NFT IDs to their deal information
     mapping(uint256 => Deal) public dealInfo;
     // Maps image URLs to their corresponding NFT metadata
     mapping(address => mapping(string => string)) private subscriptionImageURLs;
+    // Maps has subscription existence for vault owners
+    mapping(address => mapping(string => bool)) private hasSubscription;
 
     // Events for important state changes
-    event SubscriptionCreated(address indexed vaultOwner, string vaultId, uint256 price, uint32 expirationDuration);
+    event SubscriptionCreated(address indexed vaultOwner, string vaultId, uint256 price, uint32 expirationDuration, address coOwner, uint32 splitFee);
+    event SubscriptionUpdated(address indexed vaultOwner, string vaultId, uint256 price, uint32 expirationDuration, address coOwner, uint32 splitFee);
     event SubscriptionDeleted(address indexed vaultOwner, string vaultId);
     event AccessGranted(address indexed vaultOwner, string vaultId, address indexed customer, uint256 tokenId, uint256 price);
+    event PlatformFeeUpdated(uint32 _oldFee, uint32 _newFee);
 
-    constructor() ERC4908("Knowledge Market Access", "KMA") {}
+    constructor() KnowledgeAccessNFT("Knowledge Market Access", "KMA") {
+        _disableInitializers();
+        _owner = msg.sender;
+    }
 
     function initialize(address payable _treasury, uint32 _fee) public initializer {
+        __ReentrancyGuard_init();
+
         if (_treasury == address(0)) revert ZeroAddress();
         if (_fee > 10000) revert InvalidFee();
 
@@ -62,14 +80,43 @@ contract KnowledgeMarket is Initializable, ERC4908, ReentrancyGuard {
         platformFeePercent = _fee;
     }
 
+    modifier onlyOwner() {
+        if (_owner != msg.sender) revert OwnableUnauthorizedAccount();
+        _;
+    }
+
     /**
-     * @dev Creates a new subscription offering
+     * @dev Updates the platform fee percentage
+     * @param _newFee New platform fee percentage (0-10000)
+     */
+    function updatePlatformFee(uint32 _newFee) external onlyOwner {
+        if (_newFee > 10000) revert InvalidFee();
+
+        uint32 oldFee = platformFeePercent;
+        platformFeePercent = _newFee;
+
+        emit PlatformFeeUpdated(oldFee, _newFee);
+    }
+
+    /**
+     * @dev Registers a new knowledge vault with a unique ID
      * @param vaultId Unique identifier for the knowledge vault
-     * @param price Cost to mint an access NFT (can be 0 for free NFTs)
-     * @param expirationDuration How long access lasts (in seconds)
-     * @param imageURL URL for the image representing this subscription
-     * @param coOwner Address of the co-owner who shares revenue (can be 0x0 for no co-owner)
-     * @param splitFee Percentage of revenue to share with the co-owner (0-10000, where 10000 = 100%)
+     */
+    function registerVault(string calldata vaultId) public {
+        if (bytes(vaultId).length == 0) revert EmptyVaultId();
+        if (vaults[vaultId] != address(0)) revert AlreadyHasRegistered();
+
+        vaults[vaultId] = msg.sender;
+    }
+
+   /**
+     * @dev Sets the subscription details for a specific vault
+     * @param vaultId Unique identifier for the knowledge vault
+     * @param price Subscription price
+     * @param expirationDuration Duration until the subscription expires
+     * @param imageURL URL for the subscription image
+     * @param coOwner Address of the co-owner (if any)
+     * @param splitFee Percentage of the fee split with the co-owner (if any)
      */
     function setSubscription(
         string calldata vaultId,
@@ -79,21 +126,63 @@ contract KnowledgeMarket is Initializable, ERC4908, ReentrancyGuard {
         address coOwner,
         uint32 splitFee
     ) public nonReentrant {
-        // Input validation
+        if (hasSubscription[msg.sender][vaultId]) {
+            _updateSubscription(vaultId, price, expirationDuration, imageURL, coOwner, splitFee);
+        } else {
+            _createSubscription(vaultId, price, expirationDuration, imageURL, coOwner, splitFee);
+        }
+    }
+
+    function _createSubscription(
+        string calldata vaultId,
+        uint256 price,
+        uint32 expirationDuration,
+        string calldata imageURL,
+        address coOwner,
+        uint32 splitFee
+    ) internal {
         if (bytes(vaultId).length == 0) revert EmptyVaultId();
-        if (expirationDuration == 0) revert ZeroDuration();
         if (splitFee > 10000) revert InvalidFee();
         if (coOwner == msg.sender) revert SameCoOwner();
+        if (vaults[vaultId] != msg.sender) revert NotVaultOwner();
 
-        // Use the default image if none provided
         string memory finalImageURL = bytes(imageURL).length == 0 ? DEFAULT_IMAGE_URL : imageURL;
-        
+
+        hasSubscription[msg.sender][vaultId] = true;
         vaultOwnerSubscriptions[msg.sender].push(Subscription(vaultId, finalImageURL));
         subscriptionImageURLs[msg.sender][vaultId] = finalImageURL;
 
         setAccess(vaultId, price, expirationDuration, coOwner, splitFee);
 
-        emit SubscriptionCreated(msg.sender, vaultId, price, expirationDuration);
+        emit SubscriptionCreated(msg.sender, vaultId, price, expirationDuration, coOwner, splitFee);
+    }
+
+    function _updateSubscription(
+        string calldata vaultId,
+        uint256 price,
+        uint32 expirationDuration,
+        string calldata imageURL,
+        address coOwner,
+        uint32 splitFee
+    ) internal {
+        if (splitFee > 10000) revert InvalidFee();
+        if (coOwner == msg.sender) revert SameCoOwner();
+        if (vaults[vaultId] != msg.sender) revert NotVaultOwner();
+
+        string memory finalImageURL = bytes(imageURL).length == 0 ? DEFAULT_IMAGE_URL : imageURL;
+
+        Subscription[] storage subscriptions = vaultOwnerSubscriptions[msg.sender];
+        for (uint256 i = 0; i < subscriptions.length; i++) {
+            if (keccak256(abi.encodePacked(subscriptions[i].vaultId)) == keccak256(abi.encodePacked(vaultId))) {
+                subscriptions[i].imageURL = finalImageURL;
+                break;
+            }
+        }
+        subscriptionImageURLs[msg.sender][vaultId] = finalImageURL;
+
+        setAccess(vaultId, price, expirationDuration, coOwner, splitFee);
+
+        emit SubscriptionUpdated(msg.sender, vaultId, price, expirationDuration, coOwner, splitFee);
     }
 
     /**
@@ -120,6 +209,7 @@ contract KnowledgeMarket is Initializable, ERC4908, ReentrancyGuard {
 
         if (found) {
             delete subscriptionImageURLs[msg.sender][vaultId];
+            delete hasSubscription[msg.sender][vaultId];
             delAccess(vaultId);
             emit SubscriptionDeleted(msg.sender, vaultId);
         }
@@ -179,26 +269,15 @@ contract KnowledgeMarket is Initializable, ERC4908, ReentrancyGuard {
         if (to == address(0)) revert ZeroAddress();
         if (bytes(vaultId).length == 0) revert EmptyVaultId();
 
+        (bool hasActiveAccess,,) = this.hasAccess(vaultOwner, vaultId, to);
+        if (hasActiveAccess) revert AlreadyHasActiveAccess();
+
         bytes32 hash = _hash(vaultOwner, vaultId);
-        if (!this.existAccess(hash)) revert MintUnavailable(hash);
-        
         Settings memory set = accessControl[hash];
 
         if (msg.value < set.price) revert InsufficientFunds(set.price);
 
         uint256 tokenId = nextTokenId++;
-        nftData[tokenId] = Metadata(
-            hash,
-            set.resourceId,
-            set.expirationDuration + uint32(block.timestamp)
-        );
-
-        string memory imageURL = subscriptionImageURLs[vaultOwner][vaultId];
-        if (bytes(imageURL).length == 0) {
-            imageURL = DEFAULT_IMAGE_URL;
-        }
-
-        dealInfo[tokenId] = Deal(vaultOwner, imageURL, set.price);
 
         _processPayment(vaultOwner, set.price, set);
 
@@ -209,6 +288,20 @@ contract KnowledgeMarket is Initializable, ERC4908, ReentrancyGuard {
         }
         // Mint the NFT
         _safeMint(to, tokenId);
+
+        nftData[tokenId] = Metadata(
+            hash,
+            set.resourceId,
+            set.expirationDuration + uint32(block.timestamp),
+            block.timestamp
+        );
+
+        string memory imageURL = subscriptionImageURLs[vaultOwner][vaultId];
+        if (bytes(imageURL).length == 0) {
+            imageURL = DEFAULT_IMAGE_URL;
+        }
+
+        dealInfo[tokenId] = Deal(vaultOwner, imageURL, set.price);
 
         emit AccessGranted(vaultOwner, vaultId, to, tokenId, set.price);
     }
@@ -221,9 +314,9 @@ contract KnowledgeMarket is Initializable, ERC4908, ReentrancyGuard {
         uint256 remaining = amount;
         uint256 feeAmount = (amount * platformFeePercent) / 10000;
         if (feeAmount > 0) {
+            remaining -= feeAmount;
             (bool sentFee, ) = platformTreasury.call{value: feeAmount}("");
             require(sentFee, "Failed to send platform fee");
-            remaining -= feeAmount;
         }
         if (set.coOwner != address(0) && set.splitFee > 0) {
             uint256 coPart = (remaining * set.splitFee) / 10000;
@@ -235,6 +328,14 @@ contract KnowledgeMarket is Initializable, ERC4908, ReentrancyGuard {
             (bool sentVault, ) = vaultOwner.call{value: remaining}("");
             require(sentVault, "Failed to send vault owner payment");
         }
+    }
+
+    /**
+     * @dev Prevents accidental direct ETH transfers
+     * @notice Use the mint() function to purchase access NFTs
+     */
+    receive() external payable {
+        revert("Direct ETH transfers not allowed. Use mint() function.");
     }
     
     /**
@@ -263,12 +364,32 @@ contract KnowledgeMarket is Initializable, ERC4908, ReentrancyGuard {
         return false;
     }
 
+    function escape(string memory input) internal pure returns (string memory) {
+        bytes memory inputBytes = bytes(input);
+        bytes memory output;
+        for (uint i = 0; i < inputBytes.length; i++) {
+            bytes1 char = inputBytes[i];
+            if (char == '"') {
+                output = abi.encodePacked(output, "\\\"");
+            } else if (char == '\\') {
+                output = abi.encodePacked(output, "\\\\");
+            } else if (char == '\n') {
+                output = abi.encodePacked(output, "\\n");
+            } else {
+                output = abi.encodePacked(output, char);
+            }
+        }
+        return string(output);
+    }
+
     /**
      * @dev Returns the token URI for an NFT
      * @param id Token ID
      * @return JSON metadata as a string
      */
     function tokenURI(uint256 id) public view override returns (string memory) {
+        _requireOwned(id);
+
         Metadata memory data = nftData[id];
         Deal memory deal = dealInfo[id];
         Settings memory set = accessControl[data.hash];
@@ -277,21 +398,31 @@ contract KnowledgeMarket is Initializable, ERC4908, ReentrancyGuard {
             ? deal.imageURL
             : DEFAULT_IMAGE_URL;
 
-        string memory json = string.concat(
-            "{",
-                "\"name\":\"", data.resourceId, "\",",
-                "\"description\":\"This NFT grants access to a knowledge vault.\",",
-                "\"external_url\":\"https://knowledge-market.io/vaults/", data.resourceId, "\",",
-                "\"image\":\"", imageUrl, "\",",
-                "\"attributes\":[",
-                    "{ \"trait_type\": \"Price\", \"value\": ", Strings.toString(deal.price), " },",
-                    "{ \"trait_type\": \"Platform Fee (%)\", \"value\": ", Strings.toString(platformFeePercent), " },",
-                    "{ \"trait_type\": \"Split Fee (%)\", \"value\": ", Strings.toString(set.splitFee), " },",
-                    "{ \"trait_type\": \"Expiration date\", \"display_type\": \"date\", \"value\": ", Strings.toString(data.expirationTime), " }",
-                "]",
-            "}"
+        string memory nameEscaped = escape(data.resourceId);
+        string memory urlEscaped = escape(data.resourceId);
+        string memory imageEscaped = escape(imageUrl);
+
+        string memory json = string(
+            abi.encodePacked(
+                "{",
+                    "\"name\":\"", nameEscaped, "\",",
+                    "\"description\":\"This NFT grants access to a knowledge vault.\",",
+                    "\"external_url\":\"https://knowledge-market.io/vaults/", urlEscaped, "\",",
+                    "\"image\":\"", imageEscaped, "\",",
+                    "\"attributes\":[",
+                        "{ \"trait_type\": \"Price\", \"value\": ", Strings.toString(deal.price), " },",
+                        "{ \"trait_type\": \"Platform Fee (%)\", \"value\": ", Strings.toString(platformFeePercent), " },",
+                        "{ \"trait_type\": \"Split Fee (%)\", \"value\": ", Strings.toString(set.splitFee), " },",
+                        "{ \"trait_type\": \"Expiration date\", \"display_type\": \"date\", \"value\": ", Strings.toString(data.expirationTime), " }",
+                    "]",
+                "}"
+            )
         );
 
-        return string.concat("data:application/json;utf8,", json);
+        string memory encoded = Base64.encode(bytes(json));
+        return string(abi.encodePacked("data:application/json;base64,", encoded));
     }
+
+    // Reserved storage space to allow for layout changes in the future.
+    uint256[50] private __gap;
 } 

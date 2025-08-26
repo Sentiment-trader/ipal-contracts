@@ -1,4 +1,7 @@
 import { ethers } from "hardhat";
+import * as dotenv from "dotenv";
+
+dotenv.config();
 
 async function main() {
   console.log("Deploying KnowledgeMarket implementation and upgradeable proxy system...");
@@ -21,9 +24,8 @@ async function main() {
   // Initialize Proxy (if not already initialized)
   console.log("Initializing proxy contract...");
   const [owner] = await ethers.getSigners();
-  
-  const plataformFee = 1200; // 12%
-  const treasury = owner.address; // Replace with the actual treasury address
+  const platformFee = 1200; // 12%
+  const treasury = process.env.TREASURY_WALLET || owner.address;
 
   const proxyAsMarket = await ethers.getContractAt("KnowledgeMarket", proxyAddress);
 
@@ -31,7 +33,7 @@ async function main() {
     const currentTreasury = await proxyAsMarket.platformTreasury();
 
     if (currentTreasury === ethers.ZeroAddress) {
-      const tx = await proxyAsMarket.initialize(treasury, plataformFee);
+      const tx = await proxyAsMarket.initialize(treasury, platformFee);
       await tx.wait();
       console.log("   Proxy initialized successfully.");
     } else {
