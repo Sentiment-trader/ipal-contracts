@@ -147,7 +147,7 @@ describe("KnowledgeMarket", function () {
       const base64 = tokenURI.split(',')[1];
       const json = atob(base64); // or Buffer.from(base64, 'base64').toString()
 
-      expect(json).to.include("https://arweave.net/"); // Part of the DEFAULT_IMAGE_URL
+      expect(json).to.include("ipfs://QmfPxwudpBf2taw3C7isKoTwCaJ7YXUEMXN5cKGDGoWi3N"); // Part of the DEFAULT_IMAGE_URL
     });
 
     it("Should emit SubscriptionCreated event", async function () {

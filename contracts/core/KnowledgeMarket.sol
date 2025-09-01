@@ -12,7 +12,7 @@ import {Base64} from "@openzeppelin/contracts/utils/Base64.sol";
  */
 contract KnowledgeMarket is Initializable, KnowledgeAccessNFT, ReentrancyGuardUpgradeable {
     // Default image URL used when no image is provided
-    string private constant DEFAULT_IMAGE_URL = "https://arweave.net/9u0cgTmkSM25PfQpGZ-JzspjOMf4uGFjkvOfKjgQnVY";
+    string private constant DEFAULT_IMAGE_URL = "ipfs://QmfPxwudpBf2taw3C7isKoTwCaJ7YXUEMXN5cKGDGoWi3N";
     address private _owner;
 
     struct Subscription {
