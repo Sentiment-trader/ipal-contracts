@@ -265,7 +265,9 @@ With the fully implemented KnowledgeMarket contract and the upcoming $IPAL token
 ## Contract Deployments 
 
 ### Base Mainnet
-- KnowledgeMarket Proxy: [ ... ]
+- KnowledgeMarket Proxy: [0x3C9F08ac809068C3c7bBF98c86976A436106bbbb](https://basescan.org/address/0x3C9F08ac809068C3c7bBF98c86976A436106bbbb)
+- KnowledgeMarket Implementation: [0xCf7135420e083b14841c801B1eeDCAA59e4A7B21](https://basescan.org/address/0xCf7135420e083b14841c801B1eeDCAA59e4A7B21)
+- ProxyAdmin: [0x8A61c3a136cc77019Bf706CB3f0518CBc8c7E55F](https://basescan.org/address/0x8A61c3a136cc77019Bf706CB3f0518CBc8c7E55F)
 
 ### Base Sepolia (Testnet)
 - KnowledgeMarket Proxy: [0xd6D8BdB1e53571A46F824E2a2B5D13580B1abf9f](https://sepolia.basescan.org/address/0xd6D8BdB1e53571A46F824E2a2B5D13580B1abf9f)
