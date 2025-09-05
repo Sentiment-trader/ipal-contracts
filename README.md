@@ -5,7 +5,7 @@
 
 ## Abstract
 
-[Ipal network](https://ipal.network) introduces a revolutionary decentralized marketplace for knowledge exchange using blockchain technology. This white paper outlines the technical architecture and tokenomics of the IPAL platform, focusing on the fully implemented NFT-gated access system and the upcoming $IPAL token ecosystem. The platform enables content creators to monetize their knowledge while providing consumers with verifiable, immutable access rights through a transparent and secure mechanism.
+[Ipal network](https://ipal.network) introduces a revolutionary decentralized marketplace for knowledge exchange using blockchain technology. This white paper outlines the technical architecture and tokenomics of the IPAL platform, focusing on the fully implemented NFT-gated access system and the upcoming $IPAL token ecosystems. The platform enables content creators to monetize their knowledge while providing consumers with verifiable, immutable access rights through a transparent and secure mechanism.
 
 ---
 
@@ -27,7 +27,7 @@ In the current digital economy, knowledge creation and sharing face multiple cha
 
 The IPAL ecosystem consists of two main components:
 - **KnowledgeMarket Contract**: A fully implemented smart contract that manages access NFTs for knowledge vaults
-- **$IPAL Token**: An upcoming governance and utility token (currently in development)
+- **$IPAL Token**: Used as placeholder for upcoming governance and utility token systems (currently in development)
 
 ---
 
@@ -131,6 +131,7 @@ The contract provides:
 - Time-limited access to vaults based on NFT ownership
 - Verification methods to check access rights
 - Access expiration based on predefined durations
+- Add a Co-Owner, allow access for free and assign a % of generated fees (if desired) 
 
 ### NFT Representation
 Each access NFT includes:
@@ -190,7 +191,7 @@ Benefits of this architecture:
 
 > Note: This section represents planned functionality that is currently under development.
 
-The $IPAL token will serve as both a governance and utility token within the IPAL ecosystem. Token holders will be able to participate in platform governance, receive rewards, and access premium features.
+A token can serve as both a governance and utility token within the ecosystem. Token holders can be enabled to participate in platform governance, receive rewards, and access premium features.
 
 ### Tokenomics
 
@@ -213,9 +214,9 @@ flowchart TD
 ```mermaid
 pie showData
     title Stakeholders Distribution
-    "Project treasury" : 70
+    "Project treasury" : 50
     "Share holders" : 25
-    "Users (airdrop)" : 5
+    "Users (eg next airdrop)" : 25
 ```
 
 The planned token distribution ensures a balanced ecosystem that rewards early contributors while maintaining sufficient project treasury for ongoing development and marketing efforts.
@@ -247,10 +248,11 @@ IPAL's development roadmap includes:
    - Smart Contract Audit
    - e2e Testing, prepare for Mainnet launch
    - KnowledgeMarket contract deployment on Base chain
+   - Mainnet launch
 
 6. **Q4 2025 (Planned)**
-   - Launch first joint venture and TGE
-   - Mainnet launch
+   - Launch first joint ventures
+   - Stay tuned for more
 
 ---
 
@@ -258,7 +260,7 @@ IPAL's development roadmap includes:
 
 IPAL represents a significant advancement in decentralized knowledge exchange. Through its NFT-gated access system, IPAL creates a transparent, secure marketplace where knowledge creators can monetize their expertise and consumers can gain verified access to valuable content.
 
-With the fully implemented KnowledgeMarket contract and the upcoming $IPAL token, IPAL is positioned to become a leading platform in the Web3 knowledge economy, fostering a community-driven ecosystem that rewards creators fairly while providing consumers with verifiable access rights.
+With the fully implemented KnowledgeMarket contract, IPAL is positioned to become a leading platform in the Web3 knowledge economy, fostering a community-driven ecosystem that rewards creators fairly while providing consumers with verifiable access rights.
 
 ---
 
